@@ -20,8 +20,8 @@ CLRerNet achieves the <b>state-of-the-art performance on CULane benchmark </b> s
 Model           | Backbone | F1 score | GFLOPs 
 ---             | ---      | ---           | ---   
 CLRNet        | DLA34    | 80.47  | 18.4   
-[CLRerNet](https://github.com/hirotomusiker/clrernet_dev/releases/download/v0.1.0/clrernet_culane_dla34.pth)        | DLA34    | 81.12&pm;0.04 <sup>*</sup>| 18.4   
-[CLRerNet&#8902;](https://github.com/hirotomusiker/clrernet_dev/releases/download/v0.1.0/clrernet_culane_dla34_ema.pth) | DLA34    | 81.43&pm;0.14 <sup>*</sup> | 18.4   
+[CLRerNet](https://github.com/hirotomusiker/CLRerNet/releases/download/v0.1.0/clrernet_culane_dla34.pth)        | DLA34    | 81.12&pm;0.04 <sup>*</sup>| 18.4   
+[CLRerNet&#8902;](https://github.com/hirotomusiker/CLRerNet/releases/download/v0.1.0/clrernet_culane_dla34_ema.pth) | DLA34    | 81.43&pm;0.14 <sup>*</sup> | 18.4   
 
 
 \* F1 score stats of five models reported in our paper. The release models' scores are 81.11 (CLRerNet) and 81.55 (CLRerNet&#8902;, EMA model) respectively.
