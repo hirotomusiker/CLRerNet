@@ -6,7 +6,7 @@ The official implementation of [our paper](https://arxiv.org/abs/2305.08366) "CL
 
 ## Method
 
-CLRerNet features LaneIoU for the target assignment cost and loss functions aiming at the improved quality of confidence scores.   
+CLRerNet features LaneIoU for the target assignment cost and loss functions aiming at the improved quality of confidence scores.
 LaneIoU takes the local lane angles into consideration to better correlate with the segmentation-based IoU metric.
 
 <p align="left"> <img src="docs/figures/clrernet.jpg" height="200"\></p>
@@ -17,11 +17,11 @@ LaneIoU takes the local lane angles into consideration to better correlate with 
 
 CLRerNet achieves the <b>state-of-the-art performance on CULane benchmark </b> significantly surpassing the baseline.
 
-Model           | Backbone | F1 score | GFLOPs 
----             | ---      | ---           | ---   
-CLRNet        | DLA34    | 80.47  | 18.4   
-[CLRerNet](https://github.com/hirotomusiker/CLRerNet/releases/download/v0.1.0/clrernet_culane_dla34.pth)        | DLA34    | 81.12&pm;0.04 <sup>*</sup>| 18.4   
-[CLRerNet&#8902;](https://github.com/hirotomusiker/CLRerNet/releases/download/v0.1.0/clrernet_culane_dla34_ema.pth) | DLA34    | 81.43&pm;0.14 <sup>*</sup> | 18.4   
+Model           | Backbone | F1 score | GFLOPs
+---             | ---      | ---           | ---
+CLRNet        | DLA34    | 80.47  | 18.4
+[CLRerNet](https://github.com/hirotomusiker/CLRerNet/releases/download/v0.1.0/clrernet_culane_dla34.pth)        | DLA34    | 81.12&pm;0.04 <sup>*</sup>| 18.4
+[CLRerNet&#8902;](https://github.com/hirotomusiker/CLRerNet/releases/download/v0.1.0/clrernet_culane_dla34_ema.pth) | DLA34    | 81.43&pm;0.14 <sup>*</sup> | 18.4
 
 
 \* F1 score stats of five models reported in our paper. The release models' scores are 81.11 (CLRerNet) and 81.55 (CLRerNet&#8902;, EMA model) respectively.
@@ -30,7 +30,11 @@ CLRNet        | DLA34    | 80.47  | 18.4
 
 Docker environment is recommended for installation:
 ```bash
-docker-compose build --build-arg UID="`id -u`" dev
+docker-compose build \
+--build-arg UID="`id -u`" \
+--build-arg TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6" \
+dev
+
 docker-compose run --rm dev
 ```
 

@@ -1,5 +1,7 @@
 FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
+ARG TORCH_CUDA_ARCH_LIST=7.5;8.0;8.6
+
 # packages
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -40,7 +42,7 @@ ARG MMDET_VERSION
 WORKDIR /home/docker/
 RUN pip install Cython
 RUN git clone https://github.com/open-mmlab/mmdetection.git mmdetection -b v${MMDET_VERSION} --depth 1
-WORKDIR mmdetection
+WORKDIR /home/docker/mmdetection
 ENV FORCE_CUDA="1"
 RUN pip install --no-cache-dir -e .
 
