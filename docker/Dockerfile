@@ -25,6 +25,7 @@ RUN pyenv install ${PYTHON_VERSION} && pyenv global ${PYTHON_VERSION}
 
 # torch
 ARG TORCH_VERSION
+ARG TORCH_CUDA_ARCH_LIST
 ARG TORCHVISION_VERSION
 RUN pip install torch==${TORCH_VERSION} -f https://download.pytorch.org/whl/torch_stable.html
 RUN pip install torchvision==${TORCHVISION_VERSION}
@@ -40,7 +41,7 @@ ARG MMDET_VERSION
 WORKDIR /home/docker/
 RUN pip install Cython
 RUN git clone https://github.com/open-mmlab/mmdetection.git mmdetection -b v${MMDET_VERSION} --depth 1
-WORKDIR mmdetection
+WORKDIR /home/docker/mmdetection
 ENV FORCE_CUDA="1"
 RUN pip install --no-cache-dir -e .
 
