@@ -6,7 +6,7 @@ The official implementation of [our paper](https://arxiv.org/abs/2305.08366) "CL
 
 ## Method
 
-CLRerNet features LaneIoU for the target assignment cost and loss functions aiming at the improved quality of confidence scores.
+CLRerNet features LaneIoU for the target assignment cost and loss functions aiming at the improved quality of confidence scores.  
 LaneIoU takes the local lane angles into consideration to better correlate with the segmentation-based IoU metric.
 
 <p align="left"> <img src="docs/figures/clrernet.jpg" height="200"\></p>
