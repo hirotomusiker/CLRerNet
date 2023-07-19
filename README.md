@@ -30,11 +30,7 @@ CLRNet        | DLA34    | 80.47  | 18.4
 
 Docker environment is recommended for installation:
 ```bash
-docker-compose build \
---build-arg UID="`id -u`" \
---build-arg TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6" \
-dev
-
+docker-compose build --build-arg UID="`id -u`" dev
 docker-compose run --rm dev
 ```
 
