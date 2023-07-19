@@ -1,7 +1,5 @@
 FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
-ARG TORCH_CUDA_ARCH_LIST=7.5;8.0;8.6
-
 # packages
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -27,6 +25,7 @@ RUN pyenv install ${PYTHON_VERSION} && pyenv global ${PYTHON_VERSION}
 
 # torch
 ARG TORCH_VERSION
+ARG TORCH_CUDA_ARCH_LIST
 ARG TORCHVISION_VERSION
 RUN pip install torch==${TORCH_VERSION} -f https://download.pytorch.org/whl/torch_stable.html
 RUN pip install torchvision==${TORCHVISION_VERSION}
