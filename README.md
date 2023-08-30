@@ -6,7 +6,7 @@ The official implementation of [our paper](https://arxiv.org/abs/2305.08366) "CL
 
 ## Method
 
-CLRerNet features LaneIoU for the target assignment cost and loss functions aiming at the improved quality of confidence scores.  
+CLRerNet features LaneIoU for the target assignment cost and loss functions aiming at the improved quality of confidence scores.<br>
 LaneIoU takes the local lane angles into consideration to better correlate with the segmentation-based IoU metric.
 
 <p align="left"> <img src="docs/figures/clrernet.jpg" height="200"\></p>
@@ -57,6 +57,13 @@ For dataset preparation, please refer to [Dataset Preparation](docs/DATASETS.md)
 
 Coming soon...
 
+## Frame Difference Calculation
+
+Filtering out redundant frames during training helps the model avoid overfitting to them. We provide a simple calculator that outputs an npz file containing frame difference values.
+
+```bash
+python tools/calculate_frame_diff.py [culane_root_path]
+```
 
 ## Citation
 
