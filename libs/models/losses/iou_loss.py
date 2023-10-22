@@ -2,13 +2,13 @@ import torch
 from mmdet.models.builder import LOSSES
 
 
-# modified based on:
-# https://github.com/Turoad/CLRNet/blob/51e082db12973943bddefd76fd0d431fcb3350ff/clrnet/models/losses/lineiou_loss.py#L1-L38
 @LOSSES.register_module
 class CLRNetIoULoss(torch.nn.Module):
     def __init__(self, loss_weight=1.0, lane_width=15 / 800):
         """
         LineIoU loss employed in CLRNet.
+        Adapted from:
+        https://github.com/Turoad/CLRNet/blob/main/clrnet/models/losses/lineiou_loss.py
         Args:
             weight (float): loss weight.
             lane_width (float): virtual lane half-width.
@@ -65,7 +65,7 @@ class LaneIoULoss(CLRNetIoULoss):
         super(LaneIoULoss, self).__init__(loss_weight, lane_width)
         self.max_dx = 1e4
 
-    def calc_lane_width(self, pred, target, img_h=320, img_w=1640):
+    def _calc_lane_width(self, pred, target, img_h=320, img_w=1640):
         """
         Calculate the LaneIoU value between predictions and targets
         Args:
@@ -101,6 +101,6 @@ class LaneIoULoss(CLRNetIoULoss):
         assert (
             pred.shape == target.shape
         ), "prediction and target must have the same shape!"
-        pred_width, target_width = self.calc_lane_width(pred, target, img_h, img_w)
+        pred_width, target_width = self._calc_lane_width(pred, target, img_h, img_w)
         iou = self.calc_iou(pred, target, pred_width, target_width)
         return (1 - iou).mean() * self.loss_weight
