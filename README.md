@@ -4,6 +4,12 @@
 
 The official implementation of [our paper](https://arxiv.org/abs/2305.08366) "CLRerNet: Improving Confidence of Lane Detection with LaneIoU", by Hiroto Honda and Yusuke Uchida.
 
+## What's New
+
+- **Our CLRerNet paper has been accepted to WACV2024 !** (Oct. 25, 2023)
+- LaneIoU loss and cost are published. ([PR#17](https://github.com/hirotomusiker/CLRerNet/pull/17), Oct.22, 2023)
+
+
 ## Method
 
 CLRerNet features LaneIoU for the target assignment cost and loss functions aiming at the improved quality of confidence scores.<br>
@@ -11,7 +17,6 @@ LaneIoU takes the local lane angles into consideration to better correlate with 
 
 <p align="left"> <img src="docs/figures/clrernet.jpg" height="200"\></p>
 <p align="left"> <img src="docs/figures/laneiou.jpg" height="160"\></p>
-
 
 ## Performance
 
