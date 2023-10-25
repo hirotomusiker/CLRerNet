@@ -12,6 +12,11 @@ LaneIoU takes the local lane angles into consideration to better correlate with 
 <p align="left"> <img src="docs/figures/clrernet.jpg" height="200"\></p>
 <p align="left"> <img src="docs/figures/laneiou.jpg" height="160"\></p>
 
+## What's New
+
+- ** Our CLRerNet paper has been accepted to WACV2024 ! ** (Oct. 25, 2023)
+- LaneIoU loss and cost are published. ([PR#17](https://github.com/hirotomusiker/CLRerNet/pull/17), Oct.22, 2023)
+
 
 ## Performance
 
