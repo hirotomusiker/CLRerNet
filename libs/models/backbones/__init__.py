@@ -1,1 +1,1 @@
-from .dla import DLA
+from .dla import DLA  # noqa: F401

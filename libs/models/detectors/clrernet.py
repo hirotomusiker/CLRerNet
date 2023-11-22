@@ -1,5 +1,5 @@
-from mmdet.models.detectors.single_stage import SingleStageDetector
 from mmdet.models.builder import DETECTORS
+from mmdet.models.detectors.single_stage import SingleStageDetector
 
 
 @DETECTORS.register_module()
@@ -20,8 +20,22 @@ class CLRerNet(SingleStageDetector):
         )
 
     def forward_train(self, img, img_metas, **kwargs):
-        """Coming soon.."""
-        raise NotImplementedError("Training is not supported yet!")
+        """
+        Args:
+            img (Tensor): Input images of shape (N, C, H, W).
+                Typically these should be mean centered and std scaled.
+            img_metas (list[dict]): A List of image info dict where each dict
+                has: 'img_shape', 'scale_factor', 'flip', and may also contain
+                'filename', 'ori_shape', 'pad_shape', and 'img_norm_cfg'.
+                For details on the values of these keys see
+                :class:`mmdet.datasets.pipelines.Collect`.
+        Returns:
+            dict[str, Tensor]: A dictionary of loss components.
+        """
+        super(SingleStageDetector, self).forward_train(img, img_metas)
+        x = self.extract_feat(img)
+        losses = self.bbox_head.forward_train(x, img_metas)
+        return losses
 
     def forward_test(self, img, img_metas, **kwargs):
         """
@@ -36,12 +50,12 @@ class CLRerNet(SingleStageDetector):
         assert (
             img.shape[0] == 1 and len(img_metas) == 1
         ), "Only single-image test is supported."
-        img_metas[0]['batch_input_shape'] = tuple(img.size()[-2:])
+        img_metas[0]["batch_input_shape"] = tuple(img.size()[-2:])
 
         x = self.extract_feat(img)
         output = self.bbox_head.simple_test(x)
         result_dict = {
-            'result': output,
-            'meta': img_metas[0],
+            "result": output,
+            "meta": img_metas[0],
         }
         return [result_dict]  # assuming batch size is 1
