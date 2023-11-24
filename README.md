@@ -58,16 +58,21 @@ python tools/test.py configs/clrernet/culane/clrernet_culane_dla34_ema.py clrern
 
 For dataset preparation, please refer to [Dataset Preparation](docs/DATASETS.md).
 
-## Train
-
-Coming soon...
-
 ## Frame Difference Calculation
 
 Filtering out redundant frames during training helps the model avoid overfitting to them. We provide a simple calculator that outputs an npz file containing frame difference values.
 
 ```bash
 python tools/calculate_frame_diff.py [culane_root_path]
+```
+
+## Train
+
+Make sure that the frame difference npz file is prepared as `dataset/culane/list/train_diffs.npz`.<br>
+Run the following command to train a model on CULane dataset:
+
+```bash
+python tools/train.py configs/clrernet/culane/clrernet_culane_dla34.py
 ```
 
 ## Citation
