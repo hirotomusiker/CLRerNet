@@ -3,16 +3,17 @@ Adapted from:
 https://github.com/Turoad/CLRNet/blob/main/clrnet/models/heads/clr_head.py
 """
 
-
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from mmdet.core import build_prior_generator
-from mmdet.models.builder import HEADS
 from mmcv.cnn.bricks.transformer import build_attention
-from libs.utils.lane_utils import Lane
+from mmdet.core import build_assigner, build_prior_generator
+from mmdet.models.builder import HEADS, build_loss
 from nms import nms
+
+from libs.models.dense_heads.seg_decoder import SegDecoder
+from libs.utils.lane_utils import Lane
 
 
 @HEADS.register_module
@@ -28,6 +29,10 @@ class CLRerHead(nn.Module):
         refine_layers=3,
         sample_points=36,
         attention=None,
+        loss_cls=None,
+        loss_bbox=None,
+        loss_iou=None,
+        loss_seg=None,
         train_cfg=None,
         test_cfg=None,
     ):
@@ -44,25 +49,31 @@ class CLRerHead(nn.Module):
         self.fc_hidden_dim = attention.fc_hidden_dim = fc_hidden_dim
         self.prior_feat_channels = attention.in_channels = prior_feat_channels
         self.attention = build_attention(attention)
+        self.loss_cls = build_loss(loss_cls)
+        self.loss_bbox = build_loss(loss_bbox)
+        self.loss_seg = build_loss(loss_seg) if loss_seg["loss_weight"] > 0 else None
+        self.loss_iou = build_loss(loss_iou)
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
+        if self.train_cfg:
+            self.assigner = build_assigner(train_cfg["assigner"])
 
         # Non-learnable parameters
         self.register_buffer(
-            name='sample_x_indices',
+            name="sample_x_indices",
             tensor=(
                 torch.linspace(0, 1, steps=self.sample_points, dtype=torch.float32)
                 * self.n_strips
             ).long(),
         )
         self.register_buffer(
-            name='prior_feat_ys',
+            name="prior_feat_ys",
             tensor=torch.flip(
                 (self.sample_x_indices.float() / self.n_strips), dims=[-1]
             ),
         )
         self.register_buffer(
-            name='prior_ys',
+            name="prior_ys",
             tensor=torch.linspace(1, 0, steps=self.n_offsets, dtype=torch.float32),
         )
 
@@ -81,6 +92,17 @@ class CLRerHead(nn.Module):
         self.cls_modules = nn.ModuleList(cls_modules)
         self.reg_layers = nn.Linear(self.fc_hidden_dim, self.n_offsets + 4)
         self.cls_layers = nn.Linear(self.fc_hidden_dim, 2)
+        self.attention = build_attention(attention)
+
+        # Auxiliary head
+        if self.loss_seg:
+            self.seg_decoder = SegDecoder(
+                self.img_h,
+                self.img_w,
+                loss_seg.num_classes,
+                self.prior_feat_channels,
+                self.refine_layers,
+            )
 
         self.init_weights()
 
@@ -124,22 +146,22 @@ class CLRerHead(nn.Module):
         return feature
 
     def forward(self, x, **kwargs):
-        '''
+        """
         Take pyramid features as input to perform Cross Layer Refinement and finally output the prediction lanes.
         Each feature is a 4D tensor.
         Args:
             x: Input features (list[Tensor]). Each tensor has a shape (B, C, H_i, W_i),
                 where i is the pyramid level.
                 Example of shapes: ([1, 64, 40, 100], [1, 64, 20, 50], [1, 64, 10, 25]).
-        Return:
-            pred_dict (dict): prediction dict containing multiple lanes.
+        Returns:
+            pred_dict (List[dict]): List of prediction dicts each of which containins multiple lane predictions.
                 cls_logits (torch.Tensor): 2-class logits with shape (B, Np, 2).
                 anchor_params (torch.Tensor): anchor parameters with shape (B, Np, 3).
                 lengths (torch.Tensor): lane lengths in row numbers with shape (B, Np, 1).
                 xs (torch.Tensor): x coordinates of the lane points with shape (B, Np, Nr).
 
         B: batch size, Np: number of priors (anchors), Nr: num_points (rows).
-        '''
+        """
         batch_size = x[0].shape[0]
         feature_pyramid = list(x[len(x) - self.refine_layers :])
         feature_pyramid.reverse()
@@ -158,7 +180,7 @@ class CLRerHead(nn.Module):
         )  # [B, Np, 3]
         priors_on_featmap = sampled_xs.repeat(batch_size, 1, 1)
 
-        predictions_lists = []
+        predictions_list = []
 
         # iterative refine
         pooled_features_stages = []
@@ -208,13 +230,13 @@ class CLRerHead(nn.Module):
             reg_xs = updated_anchor_xs + reg[..., 4:]
 
             pred_dict = {
-                'cls_logits': cls_logits,
-                'anchor_params': anchor_params,
-                'lengths': reg[:, :, 3:4],
-                'xs': reg_xs,
+                "cls_logits": cls_logits,
+                "anchor_params": anchor_params,
+                "lengths": reg[:, :, 3:4],
+                "xs": reg_xs,
             }
 
-            predictions_lists.append(pred_dict)
+            predictions_list.append(pred_dict)
 
             if stage != self.refine_layers - 1:
                 anchor_params = anchor_params.detach().clone()
@@ -222,11 +244,155 @@ class CLRerHead(nn.Module):
                     ..., self.sample_x_indices
                 ]
 
-        return predictions_lists[-1]
+        return predictions_list
+
+    def loss(self, out_dict, img_metas):
+        """Loss calculation from the network output.
+
+        Args:
+            out_dict (dict[torch.Tensor]): Output dict from the network containing:
+                predictions (List[dict]): 3-layer prediction dicts each of which contains:
+                    cls_logits: shape (B, Np, 2), anchor_params: shape (B, Np, 3),
+                    lengths: shape (B, Np, 1) and xs: shape (B, Np, Nr).
+                seg (torch.Tensor): segmentation maps, shape (B, C, H, W).
+                where
+                B: batch size, Np: number of priors (anchors), Nr: number of rows,
+                C: segmentation channels, H and W: the largest feature's spatial shape.
+            img_metas (list[dict]): Meta information of each image, e.g.,
+                image size, scaling factor, etc.
+        Returns:
+            dict[str, Tensor]: A dictionary of loss components.
+        """
+        batch_size = len(img_metas)
+        device = out_dict["predictions"][0]["cls_logits"].device
+        cls_loss = torch.tensor(0.0).to(device)
+        reg_xytl_loss = torch.tensor(0.0).to(device)
+        iou_loss = torch.tensor(0.0).to(device)
+
+        for stage in range(self.refine_layers):
+            for b, img_meta in enumerate(img_metas):
+                pred_dict = {k: v[b] for k, v in out_dict["predictions"][stage].items()}
+                cls_pred = pred_dict["cls_logits"]
+                target = img_meta["lanes"].clone().to(device)  # [n_lanes, 78]
+                target = target[target[:, 1] == 1]
+                cls_target = cls_pred.new_zeros(cls_pred.shape[0]).long()
+
+                if len(target) == 0:
+                    # If there are no targets, all predictions have to be negatives (i.e., 0 confidence)
+                    cls_loss = cls_loss + self.loss_cls(cls_pred, cls_target).sum()
+                    continue
+
+                with torch.no_grad():
+                    (matched_row_inds, matched_col_inds) = self.assigner.assign(
+                        pred_dict, target.clone(), img_meta
+                    )
+
+                # classification targets
+                cls_target[matched_row_inds] = 1
+                cls_loss = (
+                    cls_loss
+                    + self.loss_cls(cls_pred, cls_target).sum() / target.shape[0]
+                )
+
+                # regression targets -> [start_y, start_x, theta]
+                # (all transformed to absolute values), only on matched pairs
+                reg_yxtl = torch.cat(
+                    (pred_dict["anchor_params"], pred_dict["lengths"]), dim=1
+                )
+                reg_yxtl = reg_yxtl[matched_row_inds]
+                reg_yxtl[:, 0] *= self.n_strips
+                reg_yxtl[:, 1] *= self.img_w - 1
+                reg_yxtl[:, 2] *= 180
+                reg_yxtl[:, 3] *= self.n_strips
+
+                target_yxtl = target[matched_col_inds, 2:6].clone()
+
+                # regression targets -> S coordinates (all transformed to absolute values)
+                pred_xs = pred_dict["xs"][matched_row_inds]
+                target_xs = target[matched_col_inds, 6:].clone()
+
+                # adjust target length by start point difference
+                with torch.no_grad():
+                    predictions_starts = torch.clamp(
+                        reg_yxtl[:, 0].round().long(), 0, self.n_strips
+                    )  # ensure the predictions starts is valid
+                    target_starts = (
+                        (target[matched_col_inds, 2] * self.n_strips).round().long()
+                    )
+                    target_yxtl[:, -1] -= predictions_starts - target_starts
+
+                # Loss calculation
+                target_yxtl[:, 0] *= self.n_strips
+                target_yxtl[:, 2] *= 180
+
+                reg_xytl_loss = (
+                    reg_xytl_loss + self.loss_bbox(reg_yxtl, target_yxtl).mean()
+                )
+
+                iou_loss = iou_loss + self.loss_iou(
+                    pred_xs * (self.img_w - 1) / self.img_w, target_xs / self.img_w
+                )
+
+        cls_loss /= batch_size * self.refine_layers
+
+        reg_xytl_loss /= batch_size * self.refine_layers
+        iou_loss /= batch_size * self.refine_layers
+
+        loss_dict = {
+            "loss_cls": cls_loss,
+            "loss_reg_xytl": reg_xytl_loss,
+            "loss_iou": iou_loss,
+        }
+
+        # extra segmentation loss
+        if self.loss_seg:
+            tgt_masks = np.array([t["gt_masks"].data[0] for t in img_metas])
+            tgt_masks = torch.tensor(tgt_masks).long().to(device)  # (B, H, W)
+            loss_dict["loss_seg"] = self.loss_seg(out_dict["seg"], tgt_masks)
+
+        return loss_dict
 
     def forward_train(self, x, img_metas, **kwargs):
-        # Coming Soon...
-        raise NotImplementedError("Training is not supported yet!")
+        """Forward function for training mode.
+        Args:
+            x (list[Tensor]): Features from backbone.
+            img_metas (list[dict]): Meta information of each image, e.g.,
+                image size, scaling factor, etc.
+        Returns:
+            dict[str, Tensor]: A dictionary of loss components.
+        """
+        predictions = self(x)
+        out_dict = {"predictions": predictions}
+        if self.loss_seg:
+            out_dict["seg"] = self.forward_seg(x)
+
+        losses = self.loss(out_dict, img_metas)
+        return losses
+
+    def forward_seg(self, x):
+        """Forward function for training mode.
+        Args:
+            x (list[torch.tensor]): Features from backbone.
+        Returns:
+            torch.tensor: segmentation maps, shape (B, C, H, W), where
+            B: batch size, C: segmentation channels, H and W: the largest feature's spatial shape.
+        """
+        batch_features = list(x[len(x) - self.refine_layers :])
+        batch_features.reverse()
+        seg_features = torch.cat(
+            [
+                F.interpolate(
+                    feature,
+                    size=[batch_features[-1].shape[2], batch_features[-1].shape[3]],
+                    mode="bilinear",
+                    align_corners=False,
+                )
+                for feature in batch_features
+            ],
+            dim=1,
+        )
+        seg = self.seg_decoder(seg_features)
+        return seg
 
     def get_lanes(self, pred_dict, as_lanes=True):
         """
@@ -245,14 +411,9 @@ class CLRerHead(nn.Module):
 
         B: batch size, Np: num_priors, Nr: num_points (rows).
         """
-        '''
-        Args:
-            pred_dict (dict): cls_logits, anchor_params, length and xs
-            as_lanes (bool): return output as lane format
-        '''
         softmax = nn.Softmax(dim=1)
         assert (
-            len(pred_dict['cls_logits']) == 1
+            len(pred_dict["cls_logits"]) == 1
         ), "Only single-image prediction is available!"
         # filter out the conf lower than conf threshold
         threshold = self.test_cfg.conf_threshold
@@ -346,9 +507,9 @@ class CLRerHead(nn.Module):
                 lane = Lane(
                     points=points.cpu().numpy(),
                     metadata={
-                        'start_x': lane_param[1],
-                        'start_y': lane_param[0],
-                        'conf': score,
+                        "start_x": lane_param[1],
+                        "start_y": lane_param[0],
+                        "conf": score,
                     },
                 )
             else:
@@ -366,10 +527,10 @@ class CLRerHead(nn.Module):
                     or `Lane` objects, where N is the number of rows.
                 scores (torch.Tensor): Confidence scores of the lanes.
         """
-        pred_dict = self(feats)
+        pred_dict = self(feats)[-1]
         lanes, scores = self.get_lanes(pred_dict, as_lanes=self.test_cfg.as_lanes)
         result_dict = {
-            'lanes': lanes,
-            'scores': scores,
+            "lanes": lanes,
+            "scores": scores,
         }
         return result_dict
