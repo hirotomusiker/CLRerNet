@@ -1,1 +1,1 @@
-from .clrernet_head import CLRerHead
+from .clrernet_head import CLRerHead  # noqa: F401

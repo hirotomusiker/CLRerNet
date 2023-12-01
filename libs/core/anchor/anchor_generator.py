@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-from torch import nn
 from mmdet.core.anchor.builder import PRIOR_GENERATORS
+from torch import nn
 
 
 @PRIOR_GENERATORS.register_module()
@@ -11,6 +11,7 @@ class CLRerNetAnchorGenerator(nn.Module):
     Adapted from:
     https://github.com/Turoad/CLRNet/blob/main/clrnet/models/heads/clr_head.py
     """
+
     def __init__(
         self,
         num_priors=192,
@@ -25,6 +26,40 @@ class CLRerNetAnchorGenerator(nn.Module):
         self.num_priors = num_priors
         self.num_offsets = num_points
         self.prior_embeddings = nn.Embedding(self.num_priors, 3)
+        self.init_anchors()
+
+    def init_anchors(self):
+        bottom_priors_nums = self.num_priors * 3 // 4
+        left_priors_nums, _ = self.num_priors // 8, self.num_priors // 8
+
+        strip_size = 0.5 / (left_priors_nums // 2 - 1)
+        bottom_strip_size = 1 / (bottom_priors_nums // 4 + 1)
+        for i in range(left_priors_nums):
+            nn.init.constant_(
+                self.prior_embeddings.weight[i, 0], 1 - (i // 2) * strip_size
+            )
+            nn.init.constant_(self.prior_embeddings.weight[i, 1], 0.0)
+            nn.init.constant_(
+                self.prior_embeddings.weight[i, 2], 0.16 if i % 2 == 0 else 0.32
+            )
+
+        for i in range(left_priors_nums, left_priors_nums + bottom_priors_nums):
+            nn.init.constant_(self.prior_embeddings.weight[i, 0], 1.0)
+            nn.init.constant_(
+                self.prior_embeddings.weight[i, 1],
+                ((i - left_priors_nums) // 4 + 1) * bottom_strip_size,
+            )
+            nn.init.constant_(self.prior_embeddings.weight[i, 2], 0.2 * (i % 4 + 1))
+
+        for i in range(left_priors_nums + bottom_priors_nums, self.num_priors):
+            nn.init.constant_(
+                self.prior_embeddings.weight[i, 0],
+                1 - ((i - left_priors_nums - bottom_priors_nums) // 2) * strip_size,
+            )
+            nn.init.constant_(self.prior_embeddings.weight[i, 1], 1.0)
+            nn.init.constant_(
+                self.prior_embeddings.weight[i, 2], 0.68 if i % 2 == 0 else 0.84
+            )
 
     def generate_anchors(self, anchor_params, prior_ys, sample_x_indices, img_w, img_h):
         """

@@ -135,6 +135,8 @@ class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
         self,
         weight=1.0,
         lane_width=7.5 / 800,
+        img_h=320,
+        img_w=1640,
         use_pred_start_end=False,
         use_giou=True,
     ):
@@ -151,6 +153,8 @@ class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
         self.use_pred_start_end = use_pred_start_end
         self.use_giou = use_giou
         self.max_dx = 1e4
+        self.img_h = img_h
+        self.img_w = img_w
 
     @staticmethod
     def _set_invalid_with_start_end(
@@ -228,19 +232,17 @@ class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
         union[invalid_mask_gt] = 0.0
         return ovr, union
 
-    def __call__(self, pred, target, start=None, end=None, img_h=320, img_w=1640):
+    def __call__(self, pred, target, start=None, end=None):
         """
         Calculate the line iou value between predictions and targets
         Args:
             pred: lane predictions, shape: (Nlp, Nr), relative coordinate.
             target: ground truth, shape: (Nlt, Nr), relative coordinate.
-            img_h (int): original image height corresponding to the feature map region.
-            img_w (int): original image width corresponding to the feature map region.
         Returns:
             torch.Tensor: calculated IoU matrix, shape (Nlp, Nlt)
         Nlp, Nlt: number of prediction and target lanes, Nr: number of rows.
         """
-        pred_width, target_width = self._calc_lane_width(pred, target, img_h, img_w)
+        pred_width, target_width = self._calc_lane_width(pred, target)
         ovr, union = self._calc_over_union(pred, target, pred_width, target_width)
         if self.use_pred_start_end is True:
             ovr, union = self._set_invalid_with_start_end(
