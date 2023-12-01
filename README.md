@@ -6,6 +6,7 @@ The official implementation of [our paper](https://arxiv.org/abs/2305.08366) "CL
 
 ## What's New
 
+- **Code for training is available !** (Dec. 1, 2023)
 - **Our CLRerNet paper has been accepted to WACV2024 !** (Oct. 25, 2023)
 - LaneIoU loss and cost are published. ([PR#17](https://github.com/hirotomusiker/CLRerNet/pull/17), Oct.22, 2023)
 
@@ -65,6 +66,9 @@ Filtering out redundant frames during training helps the model avoid overfitting
 ```bash
 python tools/calculate_frame_diff.py [culane_root_path]
 ```
+
+Also you can find the npz file [[here]](https://github.com/hirotomusiker/CLRerNet/releases/download/v0.2.0/train_diffs.npz).
+
 
 ## Train
 
