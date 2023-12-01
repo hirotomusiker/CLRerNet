@@ -1,6 +1,6 @@
-wandb
-tensorboard
 albumentations==0.4.6
 p_tqdm==1.3.3
 pytest
 pytest-cov
+tensorboard
+yapf==0.40.1
