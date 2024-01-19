@@ -79,6 +79,14 @@ Run the following command to train a model on CULane dataset:
 python tools/train.py configs/clrernet/culane/clrernet_culane_dla34.py
 ```
 
+## Speed Test
+
+Calculate fps by inference iteration.
+
+```bash
+python tools/speed_test.py configs/clrernet/culane/clrernet_culane_dla34.py clrernet_culane_dla34.pth --filename demo/demo.jpg --n_iter_warmup 1000 --n_iter_test 10000
+```
+
 ## Citation
 
 ```BibTeX
