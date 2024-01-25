@@ -28,7 +28,9 @@ class FocalCost:
             * cls_pred.pow(self.gamma)
         )
         pos_cost = (
-            -(cls_pred + self.eps).log() * self.alpha * (1 - cls_pred).pow(self.gamma)
+            -(cls_pred + self.eps).log()
+            * self.alpha
+            * (1 - cls_pred).pow(self.gamma)
         )
         cls_cost = pos_cost[:, gt_labels] - neg_cost[:, gt_labels]
         return cls_cost * self.weight
@@ -87,8 +89,10 @@ class CLRNetIoUCost:
         Args:
             pred: lane predictions, shape: (Nlp, Nr), relative coordinate
             target: ground truth, shape: (Nlt, Nr), relative coordinate
-            pred_width (torch.Tensor): virtual lane half-widths for prediction at pre-defined rows, shape (Nl, Nr).
-            target_width (torch.Tensor): virtual lane half-widths for GT at pre-defined rows, shape (Nl, Nr).
+            pred_width (torch.Tensor): virtual lane half-widths
+                for prediction at pre-defined rows, shape (Nl, Nr).
+            target_width (torch.Tensor): virtual lane half-widths
+                for GT at pre-defined rows, shape (Nl, Nr).
         Returns:
             torch.Tensor: calculated overlap, shape (Nlp, Nlt, Nr).
             torch.Tensor: calculated union, shape (Nlp, Nlt, Nr).
@@ -135,8 +139,6 @@ class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
         self,
         weight=1.0,
         lane_width=7.5 / 800,
-        img_h=320,
-        img_w=1640,
         use_pred_start_end=False,
         use_giou=True,
     ):
@@ -145,16 +147,15 @@ class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
         Args:
             weight (float): cost weight.
             lane_width (float): half virtual lane width.
-            use_pred_start_end (bool): apply the lane range (in horizon indices) for pred lanes
-            use_giou (bool): GIoU-style calculation that allow negative overlap
-               when the lanes are separated
+            use_pred_start_end (bool): apply the lane range
+                (in horizon indices) for pred lanes
+            use_giou (bool): GIoU-style calculation that allows
+               negative overlap when the lanes are separated
         """
         super(LaneIoUCost, self).__init__(weight, lane_width)
         self.use_pred_start_end = use_pred_start_end
         self.use_giou = use_giou
         self.max_dx = 1e4
-        self.img_h = img_h
-        self.img_w = img_w
 
     @staticmethod
     def _set_invalid_with_start_end(
@@ -170,8 +171,10 @@ class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
             union (torch.Tensor): calculated union, shape (Nlp, Nlt, Nr).
             start (torch.Tensor): start row indices of predictions, shape (Nlp).
             end (torch.Tensor): end row indices of predictions, shape (Nlp).
-            pred_width (torch.Tensor): virtual lane half-widths for prediction at pre-defined rows, shape (Nlp, Nr).
-            target_width (torch.Tensor): virtual lane half-widths for GT at pre-defined rows, shape (Nlt, Nr).
+            pred_width (torch.Tensor): virtual lane half-widths
+                for prediction at pre-defined rows, shape (Nlp, Nr).
+            target_width (torch.Tensor): virtual lane half-widths
+                for GT at pre-defined rows, shape (Nlt, Nr).
 
         Returns:
             torch.Tensor: calculated overlap, shape (Nlp, Nlt, Nr).
@@ -192,7 +195,9 @@ class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
         h = pred.shape[-1] - 1
         start_idx = (start * h).long().view(-1, 1, 1)
         end_idx = (end * h).long().view(-1, 1, 1)
-        invalid_mask_pred = invalid_mask_pred | (yind < start_idx) | (yind >= end_idx)
+        invalid_mask_pred = (
+            invalid_mask_pred | (yind < start_idx) | (yind >= end_idx)
+        )
 
         # set ovr and union to zero at horizon lines where either pred or gt is missing
         invalid_mask_pred_gt = invalid_mask_pred | invalid_mask_gt
@@ -212,8 +217,9 @@ class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
 
     @staticmethod
     def _set_invalid_without_start_end(pred, target, ovr, union):
-        """Set invalid rows for predictions and targets and modify overlaps and unions,
-        without using start and end points of prediction lanes.
+        """Set invalid rows for predictions and targets
+        and modify overlaps and unions, without using start and
+        end points of prediction lanes.
 
         Args:
             pred: lane predictions, shape: (Nlp, Nr), relative coordinate
@@ -232,23 +238,35 @@ class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
         union[invalid_mask_gt] = 0.0
         return ovr, union
 
-    def __call__(self, pred, target, start=None, end=None):
+    def __call__(
+        self, pred, target, eval_shape=(320, 1640), start=None, end=None
+    ):
         """
-        Calculate the line iou value between predictions and targets
+        Calculate LaneIoU between predictions and targets
         Args:
-            pred: lane predictions, shape: (Nlp, Nr), relative coordinate.
-            target: ground truth, shape: (Nlt, Nr), relative coordinate.
+            pred (torch.Tensor): lane predictions, shape: (Nlp, Nr), relative coordinate.
+            target (torch.Tensor): ground truth, shape: (Nlt, Nr), relative coordinate.
+            eval_shape (tuple): Cropped image shape corresponding to the area in evaluation.
+                (320, 1640) for CULane and various shapes for CurveLanes.
+            start (torch.Tensor): start row indices of predictions, shape (Nlp).
+            end (torch.Tensor): end row indices of predictions, shape (Nlp).
         Returns:
             torch.Tensor: calculated IoU matrix, shape (Nlp, Nlt)
         Nlp, Nlt: number of prediction and target lanes, Nr: number of rows.
         """
-        pred_width, target_width = self._calc_lane_width(pred, target)
-        ovr, union = self._calc_over_union(pred, target, pred_width, target_width)
+        pred_width, target_width = self._calc_lane_width(
+            pred, target, eval_shape
+        )
+        ovr, union = self._calc_over_union(
+            pred, target, pred_width, target_width
+        )
         if self.use_pred_start_end is True:
             ovr, union = self._set_invalid_with_start_end(
                 pred, target, ovr, union, start, end, pred_width, target_width
             )
         else:
-            ovr, union = self._set_invalid_without_start_end(pred, target, ovr, union)
+            ovr, union = self._set_invalid_without_start_end(
+                pred, target, ovr, union
+            )
         iou = ovr.sum(dim=-1) / (union.sum(dim=-1) + 1e-9)
         return iou * self.weight

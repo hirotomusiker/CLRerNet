@@ -84,7 +84,9 @@ class DynamicTopkAssigner(BaseAssigner):
         gt_idx = matching_matrix[prior_idx].argmax(-1)
         return prior_idx.flatten(), gt_idx.flatten()
 
-    def _clrnet_cost(self, predictions, targets, pred_xs, target_xs, img_w, img_h):
+    def _clrnet_cost(
+        self, predictions, targets, pred_xs, target_xs, img_w, img_h
+    ):
         """_summary_
         Adapted from:
         https://github.com/Turoad/CLRNet/blob/main/clrnet/models/utils/dynamic_assign.py
@@ -93,7 +95,8 @@ class DynamicTopkAssigner(BaseAssigner):
                 cls_logits: shape (Np, 2), anchor_params: shape (Np, 3),
                 lengths: shape (Np, 1) and xs: shape (Np, Nr).
             targets (torch.Tensor): lane targets, shape: (Ng, 6+Nr).
-                The first 6 elements are classification targets (2 ch), anchor starting point xy (2 ch),
+                The first 6 elements are classification targets (2 ch),
+                anchor starting point xy (2 ch),
                 anchor theta (1ch) and anchor length (1ch).
             pred_xs (torch.Tensor): predicted x-coordinates on the predefined rows, shape (Np, Nr).
             target_xs (torch.Tensor): GT x-coordinates on the predefined rows, shape (Ng, Nr).
@@ -120,7 +123,9 @@ class DynamicTopkAssigner(BaseAssigner):
         start_xys_score = torch.cdist(
             pred_reg_params[:, :2], target_start_xys, p=2
         ).reshape(num_priors, num_targets)
-        start_xys_score = (1 - start_xys_score / torch.max(start_xys_score)) + 1e-2
+        start_xys_score = (
+            1 - start_xys_score / torch.max(start_xys_score)
+        ) + 1e-2
 
         pred_thetas = pred_reg_params[:, 2:3]  # (192, 1)
         target_thetas = targets[:, 4:5]  # (4, 1)
@@ -138,12 +143,15 @@ class DynamicTopkAssigner(BaseAssigner):
         )
 
         cost = (
-            -((distances_score * start_xys_score * theta_score) ** 2) * self.reg_weight
+            -((distances_score * start_xys_score * theta_score) ** 2)
+            * self.reg_weight
             + cls_score
         )
         return cost
 
-    def _clrernet_cost(self, predictions, targets, pred_xs, target_xs):
+    def _clrernet_cost(
+        self, predictions, targets, pred_xs, target_xs, eval_shape
+    ):
         """_summary_
 
         Args:
@@ -151,10 +159,12 @@ class DynamicTopkAssigner(BaseAssigner):
                 cls_logits: shape (Np, 2), anchor_params: shape (Np, 3),
                 lengths: shape (Np, 1) and xs: shape (Np, Nr).
             targets (torch.Tensor): lane targets, shape: (Ng, 6+Nr).
-                The first 6 elements are classification targets (2 ch), anchor starting point xy (2 ch),
+                The first 6 elements are classification targets (2 ch),
+                anchor starting point xy (2 ch),
                 anchor theta (1ch) and anchor length (1ch).
             pred_xs (torch.Tensor): predicted x-coordinates on the predefined rows, shape (Np, Nr).
             target_xs (torch.Tensor): GT x-coordinates on the predefined rows, shape (Ng, Nr).
+            eval_shape (tuple): Cropped image shape corresponding to the area in evaluation.
 
         Returns:
             torch.Tensor: cost matrix, shape (Np, Ng).
@@ -169,6 +179,7 @@ class DynamicTopkAssigner(BaseAssigner):
         iou_cost = self.iou_cost(
             pred_xs,
             target_xs,
+            eval_shape,
             start,
             end,
         )
@@ -193,7 +204,8 @@ class DynamicTopkAssigner(BaseAssigner):
                 cls_logits: shape (Np, 2), anchor_params: shape (Np, 3),
                 lengths: shape (Np, 1) and xs: shape (Np, Nr).
             targets (torch.Tensor): lane targets, shape: (Ng, 6+Nr).
-                The first 6 elements are classification targets (2 ch), anchor starting point xy (2 ch),
+                The first 6 elements are classification targets (2 ch),
+                anchor starting point xy (2 ch),
                 anchor theta (1ch) and anchor length (1ch).
             img_meta (dict): meta dict that includes per-image information such as image shape.
         return:
@@ -202,23 +214,28 @@ class DynamicTopkAssigner(BaseAssigner):
         Np: number of priors (anchors), Ng: number of GT lanes, Nr: number of rows.
         """
         img_h, img_w, _ = img_meta["img_shape"]
+        eval_shape = img_meta["eval_shape"]
 
         pred_xs = predictions["xs"].detach().clone()  # relative
         target_xs = targets[:, 6:] / (img_w - 1)  # abs -> relative
 
-        iou_dynamick = self.iou_dynamick(pred_xs, target_xs)
+        iou_dynamick = self.iou_dynamick(pred_xs, target_xs, eval_shape)
 
         if self.cost_combination == 0:  # CLRNet
             cost = self._clrnet_cost(
                 predictions, targets, pred_xs, target_xs, img_w, img_h
             )
         elif self.cost_combination == 1:  # CLRerNet
-            cost = self._clrernet_cost(predictions, targets, pred_xs, target_xs)
+            cost = self._clrernet_cost(
+                predictions, targets, pred_xs, target_xs, eval_shape
+            )
         else:
             raise NotImplementedError(
                 f"cost_combination {self.cost_combination} is not implemented!"
             )
 
-        matched_row_inds, matched_col_inds = self.dynamic_k_assign(cost, iou_dynamick)
+        matched_row_inds, matched_col_inds = self.dynamic_k_assign(
+            cost, iou_dynamick
+        )
 
         return matched_row_inds, matched_col_inds
