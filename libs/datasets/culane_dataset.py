@@ -2,8 +2,6 @@
 Adapted from:
 https://github.com/aliyun/conditional-lane-detection/blob/master/mmdet/datasets/culane_dataset.py
 """
-
-
 import shutil
 from pathlib import Path
 
@@ -39,8 +37,8 @@ class CulaneDataset(CustomDataset):
             pipeline (List[mmcv.utils.config.ConfigDict]):
                 Data transformation pipeline configs.
             test_mode (bool): Test flag.
-            y_step (int): Row interval (in the original image's y scale) to sample
-                the predicted lanes for evaluation.
+            y_step (int): Row interval (in the original image's y scale)
+                to sample the predicted lanes for evaluation.
 
         """
 
@@ -48,11 +46,15 @@ class CulaneDataset(CustomDataset):
         self.test_mode = test_mode
         self.ori_w, self.ori_h = 1640, 590
         # read image list
-        self.diffs = np.load(diff_file)["data"] if diff_file is not None else []
-        self.diff_thr = diff_thr
-        self.img_infos, self.annotations, self.mask_paths = self.parse_datalist(
-            data_list
+        self.diffs = (
+            np.load(diff_file)["data"] if diff_file is not None else []
         )
+        self.diff_thr = diff_thr
+        (
+            self.img_infos,
+            self.annotations,
+            self.mask_paths,
+        ) = self.parse_datalist(data_list)
         print(len(self.img_infos), "data are loaded")
         # set group flag for the sampler
         if not self.test_mode:
@@ -62,7 +64,9 @@ class CulaneDataset(CustomDataset):
         self.pipeline = Compose(pipeline)
         self.result_dir = "tmp"
         self.list_path = data_list
-        self.test_categories_dir = str(Path(data_root).joinpath("list/test_split/"))
+        self.test_categories_dir = str(
+            Path(data_root).joinpath("list/test_split/")
+        )
         self.y_step = y_step
 
     def parse_datalist(self, data_list):
@@ -121,6 +125,10 @@ class CulaneDataset(CustomDataset):
             id_instances=id_instances,
             img_shape=ori_shape,
             ori_shape=ori_shape,
+            eval_shape=(
+                320,
+                1640,
+            ),  # Used for LaneIoU calculation. Static for CULane dataset.
             gt_masks=None,
         )
         if self.mask_paths[0]:
@@ -164,7 +172,7 @@ class CulaneDataset(CustomDataset):
         mask = cv2.imread(maskname, cv2.IMREAD_UNCHANGED)
         return mask
 
-    def load_labels(self, idx):
+    def load_labels(self, idx, offset_y=0):
         """
         Read a ground-truth lane from an annotation file.
         Args:
@@ -183,7 +191,7 @@ class CulaneDataset(CustomDataset):
                 coords_str = line.strip().split(" ")
                 for i in range(len(coords_str) // 2):
                     coord_x = float(coords_str[2 * i])
-                    coord_y = float(coords_str[2 * i + 1])
+                    coord_y = float(coords_str[2 * i + 1]) + offset_y
                     coords.append(coord_x)
                     coords.append(coord_y)
                 if len(coords) > 3:
@@ -249,7 +257,10 @@ class CulaneDataset(CustomDataset):
             if len(lane_xs) < 2:
                 continue
             lane_str = " ".join(
-                ["{:.5f} {:.5f}".format(x, y) for x, y in zip(lane_xs, lane_ys)]
+                [
+                    "{:.5f} {:.5f}".format(x, y)
+                    for x, y in zip(lane_xs, lane_ys)
+                ]
             )
             if lane_str != "":
                 out.append(lane_str)
