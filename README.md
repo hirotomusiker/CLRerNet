@@ -79,6 +79,20 @@ Run the following command to train a model on CULane dataset:
 python tools/train.py configs/clrernet/culane/clrernet_culane_dla34.py
 ```
 
+### Train on CurveLanes
+
+Draw segmentation images for CurveLanes for auxiliary loss.
+
+```bash
+python tools/make_seg.py configs/clrernet/curvelanes/clrernet_curvelanes_dla34.py
+```
+
+Run the following command to train a model on CurveLanes dataset:
+
+```bash
+python tools/train.py configs/clrernet/curvelanes/clrernet_curvelanes_dla34.py
+```
+
 ## Citation
 
 ```BibTeX
