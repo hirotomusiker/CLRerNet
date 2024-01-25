@@ -16,7 +16,13 @@ class CLRerNet(SingleStageDetector):
     ):
         """CLRerNet detector."""
         super(CLRerNet, self).__init__(
-            backbone, neck, bbox_head, train_cfg, test_cfg, pretrained, init_cfg
+            backbone,
+            neck,
+            bbox_head,
+            train_cfg,
+            test_cfg,
+            pretrained,
+            init_cfg,
         )
 
     def forward_train(self, img, img_metas, **kwargs):
@@ -51,6 +57,12 @@ class CLRerNet(SingleStageDetector):
             img.shape[0] == 1 and len(img_metas) == 1
         ), "Only single-image test is supported."
         img_metas[0]["batch_input_shape"] = tuple(img.size()[-2:])
+
+        # For dynamic input image setting (e.g. CurveLanes dataset)
+        if "crop_offset" in img_metas[0]:
+            self.bbox_head.test_cfg.cut_height = img_metas[0]["crop_offset"][1]
+            self.bbox_head.test_cfg.ori_img_h = img_metas[0]["ori_shape"][0]
+            self.bbox_head.test_cfg.ori_img_w = img_metas[0]["ori_shape"][1]
 
         x = self.extract_feat(img)
         output = self.bbox_head.simple_test(x)

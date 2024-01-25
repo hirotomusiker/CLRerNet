@@ -2,14 +2,15 @@
 Adapted from:
 https://github.com/Turoad/CLRNet/blob/main/clrnet/models/heads/clr_head.py
 """
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn.bricks.transformer import build_attention
-from mmdet.core import build_assigner, build_prior_generator
-from mmdet.models.builder import HEADS, build_loss
+from mmdet.core import build_assigner
+from mmdet.core import build_prior_generator
+from mmdet.models.builder import build_loss
+from mmdet.models.builder import HEADS
 from nms import nms
 
 from libs.models.dense_heads.seg_decoder import SegDecoder
@@ -43,7 +44,9 @@ class CLRerHead(nn.Module):
         self.n_offsets = self.anchor_generator.num_offsets
         self.n_strips = self.n_offsets - 1
         self.strip_size = self.img_h / self.n_strips
-        self.num_priors = attention.num_priors = self.anchor_generator.num_priors
+        self.num_priors = (
+            attention.num_priors
+        ) = self.anchor_generator.num_priors
         self.sample_points = attention.sample_points = sample_points
         self.refine_layers = attention.refine_layers = refine_layers
         self.fc_hidden_dim = attention.fc_hidden_dim = fc_hidden_dim
@@ -51,7 +54,9 @@ class CLRerHead(nn.Module):
         self.attention = build_attention(attention)
         self.loss_cls = build_loss(loss_cls)
         self.loss_bbox = build_loss(loss_bbox)
-        self.loss_seg = build_loss(loss_seg) if loss_seg["loss_weight"] > 0 else None
+        self.loss_seg = (
+            build_loss(loss_seg) if loss_seg["loss_weight"] > 0 else None
+        )
         self.loss_iou = build_loss(loss_iou)
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -62,7 +67,9 @@ class CLRerHead(nn.Module):
         self.register_buffer(
             name="sample_x_indices",
             tensor=(
-                torch.linspace(0, 1, steps=self.sample_points, dtype=torch.float32)
+                torch.linspace(
+                    0, 1, steps=self.sample_points, dtype=torch.float32
+                )
                 * self.n_strips
             ).long(),
         )
@@ -74,7 +81,9 @@ class CLRerHead(nn.Module):
         )
         self.register_buffer(
             name="prior_ys",
-            tensor=torch.linspace(1, 0, steps=self.n_offsets, dtype=torch.float32),
+            tensor=torch.linspace(
+                1, 0, steps=self.n_offsets, dtype=torch.float32
+            ),
         )
 
         reg_modules = list()
@@ -127,16 +136,16 @@ class CLRerHead(nn.Module):
         batch_size = batch_features.shape[0]
 
         prior_xs = prior_xs.view(batch_size, self.num_priors, -1, 1)
-        prior_ys = self.prior_feat_ys.repeat(batch_size * self.num_priors).view(
-            batch_size, self.num_priors, -1, 1
-        )
+        prior_ys = self.prior_feat_ys.repeat(
+            batch_size * self.num_priors
+        ).view(batch_size, self.num_priors, -1, 1)
 
         prior_xs = prior_xs * 2.0 - 1.0
         prior_ys = prior_ys * 2.0 - 1.0
         grid = torch.cat((prior_xs, prior_ys), dim=-1)
-        feature = F.grid_sample(batch_features, grid, align_corners=True).permute(
-            0, 2, 1, 3
-        )
+        feature = F.grid_sample(
+            batch_features, grid, align_corners=True
+        ).permute(0, 2, 1, 3)
         feature = feature.reshape(
             batch_size * self.num_priors,
             self.prior_feat_channels,
@@ -175,8 +184,10 @@ class CLRerHead(nn.Module):
             self.img_h,
         )
 
-        anchor_params = self.anchor_generator.prior_embeddings.weight.clone().repeat(
-            batch_size, 1, 1
+        anchor_params = (
+            self.anchor_generator.prior_embeddings.weight.clone().repeat(
+                batch_size, 1, 1
+            )
         )  # [B, Np, 3]
         priors_on_featmap = sampled_xs.repeat(batch_size, 1, 1)
 
@@ -188,7 +199,9 @@ class CLRerHead(nn.Module):
             prior_xs = priors_on_featmap  # torch.flip(priors_on_featmap, dims=[2])  # [24, 192, 36]
             # 1. anchor ROI pooling
             # [B, C, H, W] X [B, Np, Ns] => [B * Np, C, Ns, 1]
-            pooled_features = self.pool_prior_features(feature_pyramid[stage], prior_xs)
+            pooled_features = self.pool_prior_features(
+                feature_pyramid[stage], prior_xs
+            )
             pooled_features_stages.append(pooled_features)
 
             # 2. ROI gather
@@ -197,7 +210,9 @@ class CLRerHead(nn.Module):
             fc_features = self.attention(
                 pooled_features_stages, feature_pyramid, stage
             )  # [B, Np, Ch], Ch: fc_hidden_dim
-            fc_features = fc_features.view(self.num_priors, batch_size, -1).reshape(
+            fc_features = fc_features.view(
+                self.num_priors, batch_size, -1
+            ).reshape(
                 batch_size * self.num_priors, self.fc_hidden_dim
             )  # [B * Np, Ch]
 
@@ -226,7 +241,9 @@ class CLRerHead(nn.Module):
                 self.img_w,
                 self.img_h,
             )
-            updated_anchor_xs = updated_anchor_xs.view(batch_size, self.num_priors, -1)
+            updated_anchor_xs = updated_anchor_xs.view(
+                batch_size, self.num_priors, -1
+            )
             reg_xs = updated_anchor_xs + reg[..., 4:]
 
             pred_dict = {
@@ -271,7 +288,9 @@ class CLRerHead(nn.Module):
 
         for stage in range(self.refine_layers):
             for b, img_meta in enumerate(img_metas):
-                pred_dict = {k: v[b] for k, v in out_dict["predictions"][stage].items()}
+                pred_dict = {
+                    k: v[b] for k, v in out_dict["predictions"][stage].items()
+                }
                 cls_pred = pred_dict["cls_logits"]
                 target = img_meta["lanes"].clone().to(device)  # [n_lanes, 78]
                 target = target[target[:, 1] == 1]
@@ -279,11 +298,16 @@ class CLRerHead(nn.Module):
 
                 if len(target) == 0:
                     # If there are no targets, all predictions have to be negatives (i.e., 0 confidence)
-                    cls_loss = cls_loss + self.loss_cls(cls_pred, cls_target).sum()
+                    cls_loss = (
+                        cls_loss + self.loss_cls(cls_pred, cls_target).sum()
+                    )
                     continue
 
                 with torch.no_grad():
-                    (matched_row_inds, matched_col_inds) = self.assigner.assign(
+                    (
+                        matched_row_inds,
+                        matched_col_inds,
+                    ) = self.assigner.assign(
                         pred_dict, target.clone(), img_meta
                     )
 
@@ -291,7 +315,8 @@ class CLRerHead(nn.Module):
                 cls_target[matched_row_inds] = 1
                 cls_loss = (
                     cls_loss
-                    + self.loss_cls(cls_pred, cls_target).sum() / target.shape[0]
+                    + self.loss_cls(cls_pred, cls_target).sum()
+                    / target.shape[0]
                 )
 
                 # regression targets -> [start_y, start_x, theta]
@@ -317,7 +342,9 @@ class CLRerHead(nn.Module):
                         reg_yxtl[:, 0].round().long(), 0, self.n_strips
                     )  # ensure the predictions starts is valid
                     target_starts = (
-                        (target[matched_col_inds, 2] * self.n_strips).round().long()
+                        (target[matched_col_inds, 2] * self.n_strips)
+                        .round()
+                        .long()
                     )
                     target_yxtl[:, -1] -= predictions_starts - target_starts
 
@@ -326,11 +353,14 @@ class CLRerHead(nn.Module):
                 target_yxtl[:, 2] *= 180
 
                 reg_xytl_loss = (
-                    reg_xytl_loss + self.loss_bbox(reg_yxtl, target_yxtl).mean()
+                    reg_xytl_loss
+                    + self.loss_bbox(reg_yxtl, target_yxtl).mean()
                 )
 
                 iou_loss = iou_loss + self.loss_iou(
-                    pred_xs * (self.img_w - 1) / self.img_w, target_xs / self.img_w
+                    pred_xs * (self.img_w - 1) / self.img_w,
+                    target_xs / self.img_w,
+                    img_meta["eval_shape"],
                 )
 
         cls_loss /= batch_size * self.refine_layers
@@ -383,7 +413,10 @@ class CLRerHead(nn.Module):
             [
                 F.interpolate(
                     feature,
-                    size=[batch_features[-1].shape[2], batch_features[-1].shape[3]],
+                    size=[
+                        batch_features[-1].shape[2],
+                        batch_features[-1].shape[3],
+                    ],
                     mode="bilinear",
                     align_corners=False,
                 )
@@ -451,12 +484,20 @@ class CLRerHead(nn.Module):
             anchor_params = anchor_params[keep]
 
         lengths = torch.round(lengths * self.n_strips)
-        pred = self.predictions_to_lanes(xs, anchor_params, lengths, scores, as_lanes)
+        pred = self.predictions_to_lanes(
+            xs, anchor_params, lengths, scores, as_lanes
+        )
 
         return pred, scores
 
     def predictions_to_lanes(
-        self, pred_xs, anchor_params, lengths, scores, as_lanes=True, extend_bottom=True
+        self,
+        pred_xs,
+        anchor_params,
+        lengths,
+        scores,
+        as_lanes=True,
+        extend_bottom=True,
     ):
         """
         Convert predictions to the lane segment instances.
@@ -528,7 +569,9 @@ class CLRerHead(nn.Module):
                 scores (torch.Tensor): Confidence scores of the lanes.
         """
         pred_dict = self(feats)[-1]
-        lanes, scores = self.get_lanes(pred_dict, as_lanes=self.test_cfg.as_lanes)
+        lanes, scores = self.get_lanes(
+            pred_dict, as_lanes=self.test_cfg.as_lanes
+        )
         result_dict = {
             "lanes": lanes,
             "scores": scores,
