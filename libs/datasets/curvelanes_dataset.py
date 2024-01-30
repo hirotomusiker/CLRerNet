@@ -8,9 +8,9 @@ import cv2
 import numpy as np
 from mmdet.datasets.builder import DATASETS
 from tqdm import tqdm
+from vega.metrics.pytorch.lane_metric import LaneMetricCore
 
 from .culane_dataset import CulaneDataset
-from .metrics.lane_metric import LaneMetricCore
 
 
 @DATASETS.register_module
@@ -179,6 +179,7 @@ class CurvelanesDataset(CulaneDataset):
             iou_thresh=iou_thresh,
             lane_width=lane_width,
         )
+        evaluator.reset()
         for result in tqdm(results):
             ori_shape = result["meta"]["ori_shape"]
             filename = result["meta"]["filename"]
