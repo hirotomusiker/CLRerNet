@@ -3,19 +3,17 @@ Alaug interface for albumentations transformations.
 Adapted from:
 https://github.com/aliyun/conditional-lane-detection/blob/master/mmdet/datasets/pipelines/alaug.py
 """
-
-import copy
 import collections
+import copy
 
 import albumentations as al
 import numpy as np
-
 from mmdet.datasets.builder import PIPELINES
 
 
 @PIPELINES.register_module
 class Alaug(object):
-    def __init__(self, transforms):
+    def __init__(self, transforms, cut_unsorted=False):
         assert isinstance(transforms, collections.abc.Sequence)
         # init as None
         self.__augmentor = None
@@ -23,44 +21,49 @@ class Alaug(object):
         self.transforms = []
         self.bbox_params = None
         self.keypoint_params = None
+        self.cut_unsorted = cut_unsorted
 
         for transform in transforms:
             if isinstance(transform, dict):
-                if transform['type'] == 'Compose':
-                    self.get_al_params(transform['params'])
+                if transform["type"] == "Compose":
+                    self.get_al_params(transform["params"])
                 else:
                     transform = self.build_transforms(transform)
                     if transform is not None:
                         self.transforms.append(transform)
             else:
-                raise TypeError('transform must be a dict')
+                raise TypeError("transform must be a dict")
         self.build()
 
     def get_al_params(self, compose):
-        if compose['bboxes']:
+        if compose["bboxes"]:
             self.bbox_params = al.BboxParams(
-                format='pascal_voc',
+                format="pascal_voc",
                 min_area=0.0,
                 min_visibility=0.0,
                 label_fields=["bbox_labels"],
             )
-        if compose['keypoints']:
+        if compose["keypoints"]:
             self.keypoint_params = al.KeypointParams(
-                format='xy', remove_invisible=False
+                format="xy", remove_invisible=False
             )
 
     def build_transforms(self, transform):
-        if transform['type'] == 'OneOf':
-            transforms = transform['transforms']
+        if transform["type"] == "OneOf":
+            transforms = transform["transforms"]
             choices = []
             for t in transforms:
-                parmas = {key: value for key, value in t.items() if key != 'type'}
-                choice = getattr(al, t['type'])(**parmas)
+                parmas = {
+                    key: value for key, value in t.items() if key != "type"
+                }
+                choice = getattr(al, t["type"])(**parmas)
                 choices.append(choice)
-            return getattr(al, 'OneOf')(transforms=choices, p=transform['p'])
+            return getattr(al, "OneOf")(transforms=choices, p=transform["p"])
 
-        parmas = {key: value for key, value in transform.items() if key != 'type'}
-        return getattr(al, transform['type'])(**parmas)
+        parmas = {
+            key: value for key, value in transform.items() if key != "type"
+        }
+        return getattr(al, transform["type"])(**parmas)
 
     def build(self):
         if len(self.transforms) == 0:
@@ -84,24 +87,44 @@ class Alaug(object):
                 return False
         return True
 
+    @staticmethod
+    def cut_unsorted_points(lanes):
+        out_points = []
+        for lane in lanes:
+            out_points.append([])
+            prev_y = 1e8
+            for x, y in zip(lane[0::2], lane[1::2]):
+                if y < prev_y:
+                    out_points[-1].extend([x, y])
+                    prev_y = y
+                else:
+                    continue
+        return out_points
+
     def __call__(self, data):
         data_org = copy.deepcopy(data)
         for i in range(30):
             data_aug = self.aug(data)
-            if self.is_sorted(data_aug['gt_points']):
+            if self.is_sorted(data_aug["gt_points"]):
                 return data_aug
             data = copy.deepcopy(data_org)
+        if self.cut_unsorted:
+            # avoid lane sampling errors for sharp curve lanes
+            data_aug["gt_points"] = self.cut_unsorted_points(
+                data_aug["gt_points"]
+            )
+            return data_aug
         raise ValueError("lane augmentation failed 30 times. modifying GT..")
 
     def aug(self, data):
         if self.__augmentor is None:
             return data
-        img = data['img']
+        img = data["img"]
         bboxes = None
         keypoints = None
         masks = None
-        if 'gt_bboxes' in data:
-            gt_bboxes = data['gt_bboxes']
+        if "gt_bboxes" in data:
+            gt_bboxes = data["gt_bboxes"]
             bboxes = []
             bbox_labels = []
             for i in range(np.shape(gt_bboxes)[0]):
@@ -113,15 +136,15 @@ class Alaug(object):
                     b = gt_bboxes[i, :]
                     b = np.concatenate((b, [i]))
                     bboxes.append(b)
-                    bbox_labels.append(data['gt_labels'][i])
+                    bbox_labels.append(data["gt_labels"][i])
         else:
             bboxes = None
             bbox_labels = None
-        if 'gt_masks' in data:
-            masks = data['gt_masks']
+        if "gt_masks" in data:
+            masks = data["gt_masks"]
         else:
             masks = None
-        if 'gt_keypoints' in data:
+        if "gt_keypoints" in data:
             keypoints = data["gt_keypoints"]
             kp_group_num = len(keypoints)
             # run aug
@@ -137,9 +160,8 @@ class Alaug(object):
         else:
             keypoints_val = None
 
-        if 'gt_points' in data:
+        if "gt_points" in data:
             points = data["gt_points"]
-            p_group_num = len(points)
             # run aug
             points_index = []
             for k in points:
@@ -162,56 +184,56 @@ class Alaug(object):
             mask=masks,
             bbox_labels=bbox_labels,
         )
-        data['img'] = aug['image']
-        data['img_shape'] = data['img'].shape
-        if 'gt_bboxes' in data:
-            if aug['bboxes']:
-                data['gt_bboxes'] = np.array(aug['bboxes'])[:, :4]
-                data['gt_labels'] = np.array(aug['bbox_labels'])
+        data["img"] = aug["image"]
+        data["img_shape"] = data["img"].shape
+        if "gt_bboxes" in data:
+            if aug["bboxes"]:
+                data["gt_bboxes"] = np.array(aug["bboxes"])[:, :4]
+                data["gt_labels"] = np.array(aug["bbox_labels"])
             else:
                 return None
-        if 'gt_masks' in data:
-            data['gt_masks'] = [np.array(aug['mask'])]
-        if 'gt_keypoints' in data:
+        if "gt_masks" in data:
+            data["gt_masks"] = [np.array(aug["mask"])]
+        if "gt_keypoints" in data:
             kp_list = [[0 for j in range(i * 2)] for i in keypoints_index]
             for i in range(len(keypoints_index)):
                 for j in range(keypoints_index[i]):
-                    kp_list[i][2 * j] = aug['keypoints'][
+                    kp_list[i][2 * j] = aug["keypoints"][
                         self.cal_sum_list(keypoints_index, i) + j
                     ][0]
-                    kp_list[i][2 * j + 1] = aug['keypoints'][
+                    kp_list[i][2 * j + 1] = aug["keypoints"][
                         self.cal_sum_list(keypoints_index, i) + j
                     ][1]
-            data['gt_keypoints'] = []
+            data["gt_keypoints"] = []
             valid = []
             for i in range(kp_group_num):
-                index = int(aug['bboxes'][i][-1])
+                index = int(aug["bboxes"][i][-1])
                 valid.append(index)
-                data['gt_keypoints'].append(kp_list[index])
-            data['gt_keypoints_ignore'] = data['gt_keypoints_ignore'][valid]
+                data["gt_keypoints"].append(kp_list[index])
+            data["gt_keypoints_ignore"] = data["gt_keypoints_ignore"][valid]
 
-        if 'gt_points' in data:
-            start_idx = num_keypoints if 'gt_keypoints' in data else 0
-            points = aug['keypoints'][start_idx:]
+        if "gt_points" in data:
+            start_idx = num_keypoints if "gt_keypoints" in data else 0
+            points = aug["keypoints"][start_idx:]
             kp_list = [[0 for j in range(i * 2)] for i in points_index]
             for i in range(len(points_index)):
                 for j in range(points_index[i]):
-                    kp_list[i][2 * j] = points[self.cal_sum_list(points_index, i) + j][
-                        0
-                    ]
+                    kp_list[i][2 * j] = points[
+                        self.cal_sum_list(points_index, i) + j
+                    ][0]
                     kp_list[i][2 * j + 1] = points[
                         self.cal_sum_list(points_index, i) + j
                     ][1]
-            data['gt_points'] = kp_list
+            data["gt_points"] = kp_list
 
-        if 'gt_bboxes' in data and kp_group_num == 0:
+        if "gt_bboxes" in data and kp_group_num == 0:
             return None
         return data
 
     def __repr__(self):
-        format_string = self.__class__.__name__ + '('
+        format_string = self.__class__.__name__ + "("
         for t in self.transforms:
-            format_string += '\n'
-            format_string += '    {0}'.format(t)
-        format_string += '\n)'
+            format_string += "\n"
+            format_string += "    {0}".format(t)
+        format_string += "\n)"
         return format_string
