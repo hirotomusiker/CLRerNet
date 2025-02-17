@@ -1,5 +1,11 @@
 model = dict(
     type="CLRerNet",
+    data_preprocessor=dict(
+        type='DetDataPreprocessor',
+        mean=[0, 0, 0],
+        std=[255.0, 255.0, 255.0],
+        bgr_to_rgb=False,
+        batch_augments=None),
     backbone=dict(
         type="DLANet",
         dla="dla34",
