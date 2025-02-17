@@ -1,10 +1,10 @@
 import numpy as np
 import torch
-from mmdet.core.anchor.builder import PRIOR_GENERATORS
+from mmdet.registry import TASK_UTILS
 from torch import nn
 
 
-@PRIOR_GENERATORS.register_module()
+@TASK_UTILS.register_module()
 class CLRerNetAnchorGenerator(nn.Module):
     """
     Anchor (prior) generator.
