@@ -1,9 +1,9 @@
 import torch
 import torch.nn.functional as F
-from mmdet.models.builder import LOSSES
+from mmdet.registry import MODELS
 
 
-@LOSSES.register_module
+@MODELS.register_module()
 class CLRNetSegLoss(torch.nn.Module):
     def __init__(self, loss_weight=1.0, num_classes=5, ignore_label=255, bg_weight=0.5):
         super(CLRNetSegLoss, self).__init__()

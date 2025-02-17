@@ -1,11 +1,11 @@
-from mmcv.cnn.bricks.registry import ATTENTION
+from mmdet.registry import MODELS
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn import ConvModule
 
 
-@ATTENTION.register_module()
+@MODELS.register_module()
 class ROIGather(nn.Module):
     """
     CLRNet ROIGather module to process pooled features

@@ -6,7 +6,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from mmdet.models.builder import LOSSES
+from mmdet.registry import MODELS
 
 # Source: https://github.com/kornia/kornia/blob/f4f70fefb63287f72bc80cd96df9c061b1cb60dd/kornia/losses/focal.py
 
@@ -125,7 +125,7 @@ def focal_loss(
     return loss
 
 
-@LOSSES.register_module
+@MODELS.register_module()
 class KorniaFocalLoss(nn.Module):
     r"""Criterion that computes Focal loss.
     According to [1], the Focal loss is computed as follows:

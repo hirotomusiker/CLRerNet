@@ -8,16 +8,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn.bricks.transformer import build_attention
-from mmdet.core import build_assigner, build_prior_generator
-from mmdet.models.builder import HEADS, build_loss
+from mmdet.registry import MODELS, TASK_UTILS
+from mmdet.models.dense_heads.base_dense_head import BaseDenseHead
 from nms import nms
 
 from libs.models.dense_heads.seg_decoder import SegDecoder
 from libs.utils.lane_utils import Lane
 
 
-@HEADS.register_module
-class CLRerHead(nn.Module):
+@MODELS.register_module()
+class CLRerHead(BaseDenseHead):
     def __init__(
         self,
         anchor_generator,
@@ -37,7 +37,7 @@ class CLRerHead(nn.Module):
         test_cfg=None,
     ):
         super(CLRerHead, self).__init__()
-        self.anchor_generator = build_prior_generator(anchor_generator)
+        self.anchor_generator = TASK_UTILS.build(anchor_generator)
         self.img_w = img_w
         self.img_h = img_h
         self.n_offsets = self.anchor_generator.num_offsets
@@ -48,15 +48,15 @@ class CLRerHead(nn.Module):
         self.refine_layers = attention.refine_layers = refine_layers
         self.fc_hidden_dim = attention.fc_hidden_dim = fc_hidden_dim
         self.prior_feat_channels = attention.in_channels = prior_feat_channels
-        self.attention = build_attention(attention)
-        self.loss_cls = build_loss(loss_cls)
-        self.loss_bbox = build_loss(loss_bbox)
-        self.loss_seg = build_loss(loss_seg) if loss_seg["loss_weight"] > 0 else None
-        self.loss_iou = build_loss(loss_iou)
+        self.attention = MODELS.build(attention)
+        self.loss_cls = MODELS.build(loss_cls)
+        self.loss_bbox = MODELS.build(loss_bbox)
+        self.loss_seg = MODELS.build(loss_seg) if loss_seg["loss_weight"] > 0 else None
+        self.loss_iou = MODELS.build(loss_iou)
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
         if self.train_cfg:
-            self.assigner = build_assigner(train_cfg["assigner"])
+            self.assigner = TASK_UTILS.build(train_cfg['assigner'])
 
         # Non-learnable parameters
         self.register_buffer(
@@ -245,6 +245,9 @@ class CLRerHead(nn.Module):
                 ]
 
         return predictions_list
+
+    def loss_by_feat(self, **kwargs):
+        pass
 
     def loss(self, out_dict, img_metas):
         """Loss calculation from the network output.
@@ -517,7 +520,7 @@ class CLRerHead(nn.Module):
             lanes.append(lane)
         return lanes
 
-    def simple_test(self, feats):
+    def predict(self, feats, data_samples, rescale=False):
         """Test function without test-time augmentation.
         Args:
             feats (tuple[torch.Tensor]): Multi-level features from the FPN.

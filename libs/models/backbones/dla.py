@@ -14,7 +14,7 @@ from os.path import join
 import torch
 from torch import nn
 import torch.utils.model_zoo as model_zoo
-from mmdet.models.builder import BACKBONES
+from mmdet.registry import MODELS
 
 
 BN_MOMENTUM = 0.1
@@ -405,7 +405,7 @@ def dla34(pretrained=True, levels=None, in_channels=None, **kwargs):  # DLA-34
     return model
 
 
-@BACKBONES.register_module
+@MODELS.register_module()
 class DLANet(nn.Module):
     def __init__(
         self,
