@@ -1,18 +1,19 @@
 version: "2.3"
 services:
-  dev:
+  mmdet3x:
     runtime: nvidia
     build:
       context: .
       dockerfile: ./docker/Dockerfile
       args:
-        PYTHON_VERSION: 3.8.4
-        TORCH_VERSION: 1.12.1+cu116
-        TORCHVISION_VERSION: 0.13.1
-        TORCH_CUDA_ARCH_LIST: 7.5;8.0;8.6
-        MIM_VERSION: 0.3.3
-        MMCV_VERSION: 1.7.0
-        MMDET_VERSION: 2.28.0
+        PYTHON_VERSION: 3.11.9
+        TORCH_VERSION: 2.1.0
+        TORCHVISION_VERSION: 0.16.0
+        TORCH_CUDA_ARCH_LIST: 7.5;8.0;8.6;9.0
+        MIM_VERSION: 0.3.9
+        MMCV_VERSION: 2.1.0
+        MMDET_VERSION: 3.3.0
+        MMENGINE_VERSION: 0.10.5
     shm_size: "16gb"
     tty: true
     volumes:
