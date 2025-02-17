@@ -10,10 +10,10 @@ import collections
 import albumentations as al
 import numpy as np
 
-from mmdet.datasets.builder import PIPELINES
+from mmdet.registry import TRANSFORMS
 
 
-@PIPELINES.register_module
+@TRANSFORMS.register_module()
 class Alaug(object):
     def __init__(self, transforms):
         assert isinstance(transforms, collections.abc.Sequence)

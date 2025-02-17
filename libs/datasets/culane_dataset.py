@@ -9,17 +9,17 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from mmdet.datasets.builder import DATASETS
-from mmdet.datasets.custom import CustomDataset
-from mmdet.utils import get_root_logger
+from mmdet.registry import DATASETS
+from mmdet.datasets.base_det_dataset import BaseDetDataset
+from mmengine.logging import MMLogger
 from tqdm import tqdm
 
 from libs.datasets.metrics.culane_metric import eval_predictions
 from libs.datasets.pipelines import Compose
 
 
-@DATASETS.register_module
-class CulaneDataset(CustomDataset):
+@DATASETS.register_module()
+class CulaneDataset(BaseDetDataset):
     """Culane Dataset class."""
 
     def __init__(
@@ -31,6 +31,7 @@ class CulaneDataset(CustomDataset):
         diff_thr=15,
         test_mode=True,
         y_step=2,
+        **kwargs
     ):
         """
         Args:
@@ -53,6 +54,7 @@ class CulaneDataset(CustomDataset):
         self.img_infos, self.annotations, self.mask_paths = self.parse_datalist(
             data_list
         )
+        self._metainfo = {}
         print(len(self.img_infos), "data are loaded")
         # set group flag for the sampler
         if not self.test_mode:
@@ -224,7 +226,7 @@ class CulaneDataset(CustomDataset):
             self.img_prefix,
             self.list_path,
             self.test_categories_dir,
-            logger=get_root_logger(log_level="INFO"),
+            logger=MMLogger.get_current_instance(),
         )
         shutil.rmtree(self.result_dir)
         return results

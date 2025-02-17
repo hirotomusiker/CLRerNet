@@ -13,7 +13,7 @@ from tqdm import tqdm
 from p_tqdm import t_map, p_map
 from scipy.optimize import linear_sum_assignment
 
-from mmcv.utils import print_log
+from mmengine.logging import print_log
 
 from libs.utils.visualizer import draw_lane
 from libs.utils.lane_utils import interp
