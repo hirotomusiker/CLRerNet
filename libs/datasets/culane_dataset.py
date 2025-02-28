@@ -4,7 +4,6 @@ https://github.com/aliyun/conditional-lane-detection/blob/master/mmdet/datasets/
 """
 
 
-import shutil
 from pathlib import Path
 
 import cv2
@@ -226,7 +225,6 @@ class CulaneDataset(CustomDataset):
             self.test_categories_dir,
             logger=get_root_logger(log_level="INFO"),
         )
-        shutil.rmtree(self.result_dir)
         return results
 
     def get_prediction_string(self, lanes):
