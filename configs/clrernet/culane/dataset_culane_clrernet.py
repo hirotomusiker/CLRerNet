@@ -115,7 +115,7 @@ train_dataloader=dict(
     )
 )
 val_dataloader=dict(
-    batch_size=16,
+    batch_size=64,
     num_workers=4,
     drop_last=False,
     sampler=dict(type='DefaultSampler', shuffle=False),
@@ -128,7 +128,7 @@ val_dataloader=dict(
     ),
 )
 test_dataloader=dict(
-    batch_size=16,
+    batch_size=64,
     num_workers=4,
     drop_last=False,
     sampler=dict(type='DefaultSampler', shuffle=False),
@@ -140,3 +140,10 @@ test_dataloader=dict(
         test_mode=True,
     ),
 )
+
+val_evaluator = dict(
+    type='CULaneMetric',
+    data_root=data_root,
+    data_list=data_root + "/list/test.txt",
+    )
+test_evaluator = val_evaluator

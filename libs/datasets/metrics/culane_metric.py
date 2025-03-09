@@ -7,16 +7,99 @@ Copyright (c) 2021 Lucas Tabelini
 import os
 from pathlib import Path
 from functools import partial
+from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
 from tqdm import tqdm
 from p_tqdm import t_map, p_map
 from scipy.optimize import linear_sum_assignment
 
+from mmdet.registry import METRICS
+from mmengine.evaluator import BaseMetric
 from mmengine.logging import print_log
+from mmengine.logging import MMLogger
 
 from libs.utils.visualizer import draw_lane
 from libs.utils.lane_utils import interp
+
+
+@METRICS.register_module()
+class CULaneMetric(BaseMetric):
+    def __init__(self, data_root, data_list, y_step=2):
+        self.img_prefix = data_root
+        self.list_path = data_list
+        self.test_categories_dir = str(Path(data_root).joinpath("list/test_split/"))
+        self.result_dir = "tmp"
+        self.ori_w, self.ori_h = 1640, 590
+        self.y_step = y_step
+        super().__init__()
+    
+    def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
+        for result in data_samples:
+            # TODO: do some processing here instead of compute_metrics
+            self.results.append(result)
+        
+    def compute_metrics(self, results, metric="F1", logger=None):
+        """
+        Write prediction to txt files for evaluation and
+        evaluate them with labels.
+        Args:
+            results (List[dict]): All inference results containing:
+                result (dict): contains 'lanes' and 'scores'.
+                meta (dict): contains meta information.
+            metric (str): Metric type to evaluate. (not used)
+        Returns:
+            dict: Evaluation result dict containing
+                F1, precision, recall, etc. on the specified IoU thresholds.
+
+        """
+        for result in tqdm(results):
+            lanes = result["lanes"]
+            dst_path = (
+                Path(self.result_dir)
+                .joinpath(result["metainfo"]["sub_img_name"])
+                .with_suffix(".lines.txt")
+            )
+            dst_path.parents[0].mkdir(parents=True, exist_ok=True)
+            with open(str(dst_path), "w") as f:
+                output = self.get_prediction_string(lanes)
+                if len(output) > 0:
+                    print(output, file=f)
+
+        results = eval_predictions(
+            self.result_dir,
+            self.img_prefix,
+            self.list_path,
+            self.test_categories_dir,
+            logger=MMLogger.get_current_instance(),
+        )
+        return results
+
+    def get_prediction_string(self, lanes):
+        """
+        Convert lane instance structure to prediction strings.
+        Args:
+            lanes (List[Lane]): List of lane instances in `Lane` structure.
+        Returns:
+            out_string (str): Output string.
+        """
+        ys = np.arange(0, self.ori_h, self.y_step) / self.ori_h
+        out = []
+        for lane in lanes:
+            xs = lane(ys)
+            valid_mask = (xs >= 0) & (xs < 1)
+            xs = xs * self.ori_w
+            lane_xs = xs[valid_mask]
+            lane_ys = ys[valid_mask] * self.ori_h
+            lane_xs, lane_ys = lane_xs[::-1], lane_ys[::-1]
+            if len(lane_xs) < 2:
+                continue
+            lane_str = " ".join(
+                ["{:.5f} {:.5f}".format(x, y) for x, y in zip(lane_xs, lane_ys)]
+            )
+            if lane_str != "":
+                out.append(lane_str)
+        return "\n".join(out) if len(out) > 0 else ""
 
 
 def discrete_cross_iou(xs, ys, width=30, img_shape=(590, 1640, 3)):
