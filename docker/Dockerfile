@@ -51,6 +51,9 @@ COPY --chown=docker libs/models/layers/nms /tmp/nms
 WORKDIR /tmp/nms
 RUN python /tmp/nms/setup.py install
 
+# enable deterministic training
+ENV CUBLAS_WORKSPACE_CONFIG=:4096:8
+
 # path
 ENV PYTHONPATH $PYTHONPATH:/work
 ENV PYTHONPATH $PYTHONPATH:/home/docker/
