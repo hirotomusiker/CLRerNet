@@ -24,11 +24,16 @@ model = dict(test_cfg=dict(conf_threshold=0.41))
 total_epochs = 15
 checkpoint_config = dict(interval=total_epochs)
 
-train_cfg = dict(max_epochs=total_epochs, val_interval=3)
+train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=total_epochs, val_interval=3)
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
 
-data = dict(samples_per_gpu=24)  # single GPU setting
+train_dataloader=dict(
+    batch_size=24
+ ) # single GPU setting
+
+# seed
+randomness = dict(seed=0, deterministic=True)
 
 # optimizer
 optim_wrapper = dict(
