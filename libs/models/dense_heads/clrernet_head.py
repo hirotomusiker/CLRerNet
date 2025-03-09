@@ -4,11 +4,14 @@ https://github.com/Turoad/CLRNet/blob/main/clrnet/models/heads/clr_head.py
 """
 
 import numpy as np
+from typing import Tuple
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn.bricks.transformer import build_attention
 from mmdet.registry import MODELS, TASK_UTILS
+from mmdet.structures import SampleList
 from mmdet.models.dense_heads.base_dense_head import BaseDenseHead
 from nms import nms
 
@@ -99,9 +102,9 @@ class CLRerHead(BaseDenseHead):
             self.seg_decoder = SegDecoder(
                 self.img_h,
                 self.img_w,
-                loss_seg.num_classes,
-                self.prior_feat_channels,
-                self.refine_layers,
+                num_classes=5,
+                prior_feat_channels=self.prior_feat_channels,
+                refine_layers=self.refine_layers,
             )
 
         self.init_weights()
@@ -249,7 +252,7 @@ class CLRerHead(BaseDenseHead):
     def loss_by_feat(self, **kwargs):
         pass
 
-    def loss(self, out_dict, img_metas):
+    def _loss(self, out_dict, batch_data_samples):
         """Loss calculation from the network output.
 
         Args:
@@ -266,17 +269,17 @@ class CLRerHead(BaseDenseHead):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
-        batch_size = len(img_metas)
+        batch_size = len(batch_data_samples)
         device = out_dict["predictions"][0]["cls_logits"].device
         cls_loss = torch.tensor(0.0).to(device)
         reg_xytl_loss = torch.tensor(0.0).to(device)
         iou_loss = torch.tensor(0.0).to(device)
 
         for stage in range(self.refine_layers):
-            for b, img_meta in enumerate(img_metas):
+            for b, img_meta in enumerate(batch_data_samples):
                 pred_dict = {k: v[b] for k, v in out_dict["predictions"][stage].items()}
                 cls_pred = pred_dict["cls_logits"]
-                target = img_meta["lanes"].clone().to(device)  # [n_lanes, 78]
+                target = img_meta.lanes.clone().to(device)  # [n_lanes, 78]
                 target = target[target[:, 1] == 1]
                 cls_target = cls_pred.new_zeros(cls_pred.shape[0]).long()
 
@@ -349,13 +352,13 @@ class CLRerHead(BaseDenseHead):
 
         # extra segmentation loss
         if self.loss_seg:
-            tgt_masks = np.array([t["gt_masks"].data[0] for t in img_metas])
+            tgt_masks = np.array([t.gt_masks[0] for t in batch_data_samples])
             tgt_masks = torch.tensor(tgt_masks).long().to(device)  # (B, H, W)
             loss_dict["loss_seg"] = self.loss_seg(out_dict["seg"], tgt_masks)
 
         return loss_dict
 
-    def forward_train(self, x, img_metas, **kwargs):
+    def loss(self, x: Tuple[Tensor], batch_data_samples: SampleList) -> dict:
         """Forward function for training mode.
         Args:
             x (list[Tensor]): Features from backbone.
@@ -369,7 +372,7 @@ class CLRerHead(BaseDenseHead):
         if self.loss_seg:
             out_dict["seg"] = self.forward_seg(x)
 
-        losses = self.loss(out_dict, img_metas)
+        losses = self._loss(out_dict, batch_data_samples)
         return losses
 
     def forward_seg(self, x):

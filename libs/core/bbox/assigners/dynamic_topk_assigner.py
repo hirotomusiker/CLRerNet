@@ -200,7 +200,7 @@ class DynamicTopkAssigner(BaseAssigner):
             matched_col_inds (Tensor): matched targets, shape: (num_targets).
         Np: number of priors (anchors), Ng: number of GT lanes, Nr: number of rows.
         """
-        img_h, img_w, _ = img_meta["img_shape"]
+        img_h, img_w, _ = img_meta.img_shape
 
         pred_xs = predictions["xs"].detach().clone()  # relative
         target_xs = targets[:, 6:] / (img_w - 1)  # abs -> relative
