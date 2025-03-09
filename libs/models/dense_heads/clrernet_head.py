@@ -414,49 +414,54 @@ class CLRerHead(BaseDenseHead):
 
         B: batch size, Np: num_priors, Nr: num_points (rows).
         """
-        softmax = nn.Softmax(dim=1)
-        assert (
-            len(pred_dict["cls_logits"]) == 1
-        ), "Only single-image prediction is available!"
-        # filter out the conf lower than conf threshold
+        softmax = nn.Softmax(dim=2)
         threshold = self.test_cfg.conf_threshold
-        scores = softmax(pred_dict["cls_logits"][0])[:, 1]
-        keep_inds = scores >= threshold
-        scores = scores[keep_inds]
-        xs = pred_dict["xs"][0, keep_inds]
-        lengths = pred_dict["lengths"][0, keep_inds]
-        anchor_params = pred_dict["anchor_params"][0, keep_inds]
-        if xs.shape[0] == 0:
-            return [], []
+        all_scores = softmax(pred_dict["cls_logits"])[:, :, 1]
+        all_keep_inds = all_scores >= threshold  # [64, 192]
+        out_preds = []
+        out_scores = []
+        for scores, xs, lengths, anchor_params, keep_inds in zip(
+            all_scores, pred_dict["xs"], pred_dict["lengths"],
+            pred_dict["anchor_params"], all_keep_inds):
+            scores = scores[keep_inds]
+            xs = xs[keep_inds]
+            lengths = lengths[keep_inds]
+            anchor_params = anchor_params[keep_inds]
+            if xs.shape[0] == 0:
+                out_preds.append([])
+                out_scores.append([])
+                continue
 
-        if self.test_cfg.use_nms:
-            nms_anchor_params = anchor_params[..., :2].detach().clone()
-            nms_anchor_params[..., 0] = 1 - nms_anchor_params[..., 0]
-            nms_predictions = torch.cat(
-                [
-                    pred_dict["cls_logits"][0, keep_inds].detach().clone(),
-                    nms_anchor_params[..., :2],
-                    lengths.detach().clone() * self.n_strips,
-                    xs.detach().clone() * (self.img_w - 1),
-                ],
-                dim=-1,
-            )  # [N, 77]
-            keep, num_to_keep, _ = nms(
-                nms_predictions,
-                scores,
-                overlap=self.test_cfg.nms_thres,
-                top_k=self.test_cfg.nms_topk,
-            )
-            keep = keep[:num_to_keep]
-            xs = xs[keep]
-            scores = scores[keep]
-            lengths = lengths[keep]
-            anchor_params = anchor_params[keep]
+            if self.test_cfg.use_nms:
+                nms_anchor_params = anchor_params[..., :2].detach().clone()
+                nms_anchor_params[..., 0] = 1 - nms_anchor_params[..., 0]
+                nms_predictions = torch.cat(
+                    [
+                        pred_dict["cls_logits"][0, keep_inds].detach().clone(),
+                        nms_anchor_params[..., :2],
+                        lengths.detach().clone() * self.n_strips,
+                        xs.detach().clone() * (self.img_w - 1),
+                    ],
+                    dim=-1,
+                )  # [N, 77]
+                keep, num_to_keep, _ = nms(
+                    nms_predictions,
+                    scores,
+                    overlap=self.test_cfg.nms_thres,
+                    top_k=self.test_cfg.nms_topk,
+                )
+                keep = keep[:num_to_keep]
+                xs = xs[keep]
+                scores = scores[keep]
+                lengths = lengths[keep]
+                anchor_params = anchor_params[keep]
 
-        lengths = torch.round(lengths * self.n_strips)
-        pred = self.predictions_to_lanes(xs, anchor_params, lengths, scores, as_lanes)
+            lengths = torch.round(lengths * self.n_strips)
+            pred = self.predictions_to_lanes(xs, anchor_params, lengths, scores, as_lanes)
+            out_preds.append(pred)
+            out_scores.append(scores)
 
-        return pred, scores
+        return out_preds, out_scores
 
     def predictions_to_lanes(
         self, pred_xs, anchor_params, lengths, scores, as_lanes=True, extend_bottom=True
@@ -531,9 +536,11 @@ class CLRerHead(BaseDenseHead):
                 scores (torch.Tensor): Confidence scores of the lanes.
         """
         pred_dict = self(feats)[-1]
-        lanes, scores = self.get_lanes(pred_dict, as_lanes=self.test_cfg.as_lanes)
-        result_dict = {
+        all_lanes, all_scores = self.get_lanes(pred_dict, as_lanes=self.test_cfg.as_lanes)
+        result_dict = [{
             "lanes": lanes,
             "scores": scores,
+            "metainfo": ds.metainfo,
         }
+        for lanes, scores, ds in zip(all_lanes, all_scores, data_samples)]
         return result_dict

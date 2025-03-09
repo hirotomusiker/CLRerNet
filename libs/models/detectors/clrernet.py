@@ -47,16 +47,9 @@ class CLRerNet(SingleStageDetector):
             result_dict (List[dict]): Single-image result containing prediction outputs and
              img_metas as 'result' and 'metas' respectively.
         """
-        assert (
-            img.shape[0] == 1 and len(data_samples) == 1
-        ), "Only single-image test is supported."
-        metainfo = data_samples[0].metainfo
-        metainfo["batch_input_shape"] = tuple(img.size()[-2:])
+        for i in range(len(data_samples)):
+            data_samples[i].metainfo["batch_input_shape"] = tuple(img.size()[-2:])
 
         x = self.extract_feat(img)
-        output = self.bbox_head.predict(x, data_samples)
-        result_dict = {
-            "result": output,
-            "meta": metainfo,
-        }
-        return [result_dict]  # assuming batch size is 1
+        outputs = self.bbox_head.predict(x, data_samples)
+        return outputs
