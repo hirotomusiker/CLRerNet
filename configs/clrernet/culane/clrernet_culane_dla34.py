@@ -41,9 +41,19 @@ optim_wrapper = dict(
     optimizer=dict(type="AdamW", lr=6e-4),
 )
 
+# learning rate policy
+param_scheduler = [
+    dict(
+        type='CosineAnnealingLR',
+        eta_min=0,
+        begin=0,
+        T_max=total_epochs,
+        end=total_epochs,
+        by_epoch=True,
+        convert_to_iter_based=True
+        ),
+]
 
-# learning policy
-lr_config = dict(policy="CosineAnnealing", min_lr=0.0, by_epoch=False)
 
 log_config = dict(
     hooks=[

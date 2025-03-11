@@ -7,7 +7,8 @@ Copyright (c) 2021 Lucas Tabelini
 import os
 from pathlib import Path
 from functools import partial
-from typing import Dict, List, Optional, Sequence, Union
+import tempfile
+from typing import Sequence
 
 import numpy as np
 from tqdm import tqdm
@@ -29,7 +30,7 @@ class CULaneMetric(BaseMetric):
         self.img_prefix = data_root
         self.list_path = data_list
         self.test_categories_dir = str(Path(data_root).joinpath("list/test_split/"))
-        self.result_dir = "tmp"
+        self.result_dir = tempfile.TemporaryDirectory().name
         self.ori_w, self.ori_h = 1640, 590
         self.y_step = y_step
         super().__init__()

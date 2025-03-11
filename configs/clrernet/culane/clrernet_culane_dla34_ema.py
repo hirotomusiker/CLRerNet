@@ -45,5 +45,5 @@ optim_wrapper = dict(
 
 
 # learning policy
-lr_config = dict(policy="CosineAnnealing", min_lr=0.0, by_epoch=False)
+lr_config = dict(policy="CosineAnnealing", min_lr=6e-4, by_epoch=False)
 

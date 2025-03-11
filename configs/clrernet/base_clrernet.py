@@ -39,12 +39,12 @@ model = dict(
             lane_width=7.5 / 800,
             loss_weight=4.0,
         ),
-        # switched from CLRNetSegLoss for deterministic training
         loss_seg=dict(
-            type="CrossEntropyLoss",
+            type="CLRNetSegLoss",
             loss_weight=1.0,
-            ignore_index=255,
-            class_weight=[0.4, 1, 1, 1, 1],
+            num_classes=5,  # 4 lanes + 1 background
+            ignore_label=255,
+            bg_weight=0.4,
         ),
     ),
     # training and testing settings

@@ -144,6 +144,11 @@ test_dataloader=dict(
 val_evaluator = dict(
     type='CULaneMetric',
     data_root=data_root,
+    data_list=data_root + "/list/val.txt",
+    )
+
+test_evaluator = dict(
+    type='CULaneMetric',
+    data_root=data_root,
     data_list=data_root + "/list/test.txt",
     )
-test_evaluator = val_evaluator
