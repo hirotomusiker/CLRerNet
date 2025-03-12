@@ -48,7 +48,7 @@ def inference_one_image(model, img_path):
     with torch.no_grad():
         results = model.test_step(data_)
 
-    lanes = results[0]['result']['lanes']
+    lanes = results[0]['lanes']
     preds = get_prediction(lanes, ori_shape[0], ori_shape[1])
 
     return img, preds

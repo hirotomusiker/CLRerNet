@@ -56,7 +56,7 @@ class CulaneDataset(Dataset):
             data_list
         )
         self.img_infos = self.img_infos
-        self._metainfo = {}
+        self.metainfo = {}
         print(len(self.img_infos), "data are loaded")
         # set group flag for the sampler
         if not self.test_mode:
