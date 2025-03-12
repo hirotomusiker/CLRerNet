@@ -5,7 +5,6 @@ https://github.com/open-mmlab/mmengine/blob/v0.10.4/mmengine/dataset/base_datase
 """
 
 
-import shutil
 from pathlib import Path
 
 import cv2

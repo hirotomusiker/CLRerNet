@@ -2,12 +2,13 @@
 
 # CLRerNet Official Implementation
 
-The official implementation of [our paper](https://arxiv.org/abs/2305.08366) "CLRerNet: Improving Confidence of Lane Detection with LaneIoU", by Hiroto Honda and Yusuke Uchida.
+The official implementation of [our paper](https://openaccess.thecvf.com/content/WACV2024/html/Honda_CLRerNet_Improving_Confidence_of_Lane_Detection_With_LaneIoU_WACV_2024_paper.html) "CLRerNet: Improving Confidence of Lane Detection with LaneIoU" (WACV 2024), by Hiroto Honda and Yusuke Uchida.
 
 ## What's New
 
-- **Code for training is available !** (Dec. 1, 2023)
-- **Our CLRerNet paper has been accepted to WACV2024 !** (Oct. 25, 2023)
+- **Draft branches under development: [[mmdet3x env](https://github.com/hirotomusiker/CLRerNet/tree/feature/mmv3_env)] (only test and demo inference) [[CurveLanes dataset](https://github.com/hirotomusiker/CLRerNet/tree/feature/curvelanes)] (train, test)**
+- Code for training is available ! (Dec. 1, 2023)
+- Our CLRerNet paper has been accepted to WACV2024 ! (Oct. 25, 2023)
 - LaneIoU loss and cost are published. ([PR#17](https://github.com/hirotomusiker/CLRerNet/pull/17), Oct.22, 2023)
 
 
