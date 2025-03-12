@@ -21,12 +21,19 @@ cfg_name = "clrernet_culane_dla34_ema.py"
 
 model = dict(test_cfg=dict(conf_threshold=0.43))
 
-custom_hooks = [dict(type="ExpMomentumEMAHook", momentum=0.0001, priority=49)]
+custom_hooks = [
+    dict(
+        type='EMAHook',
+        ema_type='ExpMomentumEMA',
+        momentum=0.0001,
+        update_buffers=True,
+        priority=49)
+]
 
 total_epochs = 50
 checkpoint_config = dict(interval=total_epochs)
 
-train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=total_epochs, val_interval=)
+train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=total_epochs, val_interval=10)
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
 
