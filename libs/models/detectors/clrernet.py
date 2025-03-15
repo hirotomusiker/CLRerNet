@@ -1,5 +1,5 @@
-from mmdet.registry import MODELS
 from mmdet.models.detectors.single_stage import SingleStageDetector
+from mmdet.registry import MODELS
 
 
 @MODELS.register_module()

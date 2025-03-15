@@ -4,12 +4,11 @@ Adapted from:
 https://github.com/aliyun/conditional-lane-detection/blob/master/mmdet/datasets/pipelines/alaug.py
 """
 
-import copy
 import collections
+import copy
 
 import albumentations as al
 import numpy as np
-
 from mmdet.registry import TRANSFORMS
 
 
@@ -139,7 +138,6 @@ class Alaug(object):
 
         if 'gt_points' in data:
             points = data["gt_points"]
-            p_group_num = len(points)
             # run aug
             points_index = []
             for k in points:

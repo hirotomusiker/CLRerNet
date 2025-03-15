@@ -1,8 +1,8 @@
-from mmdet.registry import MODELS
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn import ConvModule
+from mmdet.registry import MODELS
 
 
 @MODELS.register_module()
@@ -218,8 +218,8 @@ class AnchorVecFeatureMapAttention(nn.Module):
         sim_map = torch.matmul(query, key)
         sim_map = (self.dim**-0.5) * sim_map
         sim_map = F.softmax(sim_map, dim=-1)
-        context = torch.matmul(sim_map, value)  #  [B, Np, C]
-        context = self.W(context)  #  [B, Np, C]
+        context = torch.matmul(sim_map, value)  # [B, Np, C]
+        context = self.W(context)  # [B, Np, C]
         return context
 
 

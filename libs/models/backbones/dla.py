@@ -3,18 +3,14 @@ Adapted from:
 https://github.com/Turoad/CLRNet/blob/main/clrnet/models/backbones/dla34.py
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import math
 import logging
+import math
 from os.path import join
 
 import torch
-from torch import nn
 import torch.utils.model_zoo as model_zoo
 from mmdet.registry import MODELS
+from torch import nn
 
 
 BN_MOMENTUM = 0.1

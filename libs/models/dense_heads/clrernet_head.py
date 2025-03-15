@@ -2,18 +2,19 @@
 Adapted from:
 https://github.com/Turoad/CLRNet/blob/main/clrnet/models/heads/clr_head.py
 """
+from typing import Tuple
 
 import numpy as np
-from typing import Tuple
 import torch
-from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn.bricks.transformer import build_attention
-from mmdet.registry import MODELS, TASK_UTILS
-from mmdet.structures import SampleList
 from mmdet.models.dense_heads.base_dense_head import BaseDenseHead
+from mmdet.registry import MODELS
+from mmdet.registry import TASK_UTILS
+from mmdet.structures import SampleList
 from nms import nms
+from torch import Tensor
 
 from libs.models.dense_heads.seg_decoder import SegDecoder
 from libs.utils.lane_utils import Lane

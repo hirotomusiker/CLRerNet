@@ -1,13 +1,11 @@
 import math
 
 import numpy as np
-#from mmcv.parallel import DataContainer as DC
-from mmcv.transforms.base import BaseTransform
 from mmcv.transforms import to_tensor
+from mmcv.transforms.base import BaseTransform
 from mmdet.registry import TRANSFORMS
 from mmdet.structures import DetDataSample
 from mmengine.structures import InstanceData
-#from mmdet.datasets.pipelines.formatting import Collect, to_tensor
 
 from libs.utils.lane_utils import sample_lane
 

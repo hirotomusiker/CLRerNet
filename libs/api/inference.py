@@ -4,10 +4,9 @@
 
 import cv2
 import torch
-from mmengine.dataset import default_collate
 
-from libs.datasets.pipelines import Compose
 from libs.datasets.metrics.culane_metric import interp
+from libs.datasets.pipelines import Compose
 
 
 def inference_one_image(model, img_path):
@@ -34,7 +33,6 @@ def inference_one_image(model, img_path):
 
     cfg = model.cfg
     model.bbox_head.test_cfg.as_lanes = False
-    device = next(model.parameters()).device  # model device
 
     test_pipeline = Compose(cfg.test_dataloader.dataset.pipeline)
 

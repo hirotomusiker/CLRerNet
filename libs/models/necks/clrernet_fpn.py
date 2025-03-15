@@ -70,7 +70,7 @@ class CLRerNetFPN(nn.Module):
               Example of shapes:
                 ([1, 64, 40, 100], [1, 64, 20, 50], [1, 64, 10, 25]).
         """
-        if type(inputs) == tuple:
+        if isinstance(inputs, tuple):
             inputs = list(inputs)
 
         assert len(inputs) >= len(self.in_channels)  # 4 > 3

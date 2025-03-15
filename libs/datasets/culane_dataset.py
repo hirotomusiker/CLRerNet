@@ -3,20 +3,13 @@ Adapted from:
 https://github.com/aliyun/conditional-lane-detection/blob/master/mmdet/datasets/culane_dataset.py
 https://github.com/open-mmlab/mmengine/blob/v0.10.4/mmengine/dataset/base_dataset.py
 """
-
-
 from pathlib import Path
 
 import cv2
 import numpy as np
 from mmdet.registry import DATASETS
-from mmdet.datasets.base_det_dataset import BaseDetDataset
-from mmengine.logging import MMLogger
-from tqdm import tqdm
-
-from mmengine.dataset import BaseDataset
 from torch.utils.data import Dataset
-from libs.datasets.metrics.culane_metric import eval_predictions
+
 from libs.datasets.pipelines import Compose
 
 
