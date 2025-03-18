@@ -77,6 +77,7 @@ model = dict(
         conf_threshold=0.41,
         use_nms=True,
         as_lanes=True,
+        extend_bottom=True,
         nms_thres=50,
         nms_topk=4,
         ori_img_w=1640,

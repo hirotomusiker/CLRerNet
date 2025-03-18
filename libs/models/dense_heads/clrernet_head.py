@@ -401,7 +401,7 @@ class CLRerHead(BaseDenseHead):
         seg = self.seg_decoder(seg_features)
         return seg
 
-    def get_lanes(self, pred_dict, as_lanes=True):
+    def get_lanes(self, pred_dict, as_lanes=True, extend_bottom=True):
         """
         Convert model output to lane instances.
         Args:
@@ -461,7 +461,7 @@ class CLRerHead(BaseDenseHead):
                 anchor_params = anchor_params[keep]
 
             lengths = torch.round(lengths * self.n_strips)
-            pred = self.predictions_to_lanes(xs, anchor_params, lengths, scores, as_lanes)
+            pred = self.predictions_to_lanes(xs, anchor_params, lengths, scores, as_lanes, extend_bottom)
             out_preds.append(pred)
             out_scores.append(scores)
 
@@ -486,7 +486,7 @@ class CLRerHead(BaseDenseHead):
 
         B: batch size, Nl: number of lanes after NMS, Nr: num_points (rows).
         """
-        prior_ys = self.prior_ys.to(pred_xs.device).double()
+        prior_ys = self.prior_ys.double()
         lanes = []
         for lane_xs, lane_param, length, score in zip(
             pred_xs, anchor_params, lengths, scores
@@ -540,7 +540,11 @@ class CLRerHead(BaseDenseHead):
                 scores (torch.Tensor): Confidence scores of the lanes.
         """
         pred_dict = self(feats)[-1]
-        all_lanes, all_scores = self.get_lanes(pred_dict, as_lanes=self.test_cfg.as_lanes)
+        all_lanes, all_scores = self.get_lanes(
+            pred_dict,
+            as_lanes=self.test_cfg.as_lanes,
+            extend_bottom=self.test_cfg.extend_bottom
+            )
         result_dict = [{
             "lanes": lanes,
             "scores": scores,

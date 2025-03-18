@@ -49,6 +49,7 @@ def main():
 
     cfg = model.cfg
     model.bbox_head.test_cfg.as_lanes = False
+    model.bbox_head.test_cfg.extend_bottom = False
 
     test_pipeline = Compose(cfg.test_dataloader.dataset.pipeline)
     data = dict(
@@ -62,23 +63,24 @@ def main():
         ori_shape=ori_shape,
     )
     data = test_pipeline(data)
-    data_ = dict(
+    data = dict(
         inputs=[data["inputs"]],
         data_samples=[data["data_samples"]],
     )
+    data_preprocessed = model.data_preprocessor(data, False)
 
     # forward the model
     with torch.no_grad():
         # warm up
         print(f"Warming up for {args.n_iter_warmup} iterations.")
         for i in range(args.n_iter_warmup):
-            _ = model.test_step(data_)
+            _ = model.predict(data_preprocessed["inputs"], data_preprocessed["data_samples"])
 
         # test
         print(f"Speed test for {args.n_iter_test} iterations.")
         timer = mmengine.Timer()
         for i in range(args.n_iter_test):
-            _ = model.test_step(data_)
+            _ = model.predict(data_preprocessed["inputs"], data_preprocessed["data_samples"])
         t = timer.since_last_check()
         fps = args.n_iter_test / t
         print("##########################")
