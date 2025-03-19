@@ -5,13 +5,12 @@ https://github.com/aliyun/conditional-lane-detection/blob/master/mmdet/datasets/
 
 import collections
 
-from mmdet.datasets.builder import PIPELINES
-from mmcv.utils import build_from_cfg
+from mmdet.registry import TRANSFORMS
 
 from .alaug import Alaug
 
 
-@PIPELINES.register_module(force=True)
+@TRANSFORMS.register_module()
 class Compose(object):
     def __init__(self, transforms):
         assert isinstance(transforms, collections.abc.Sequence)
@@ -21,7 +20,7 @@ class Compose(object):
                 if transform['type'] == 'albumentation':
                     transform = Alaug(transform['pipelines'])
                 else:
-                    transform = build_from_cfg(transform, PIPELINES)
+                    transform = TRANSFORMS.build(transform)
                 self.transforms.append(transform)
             elif callable(transform):
                 self.transforms.append(transform)

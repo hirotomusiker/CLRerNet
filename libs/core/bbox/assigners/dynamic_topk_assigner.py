@@ -1,11 +1,10 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import torch
-from mmdet.core.bbox.assigners.base_assigner import BaseAssigner
-from mmdet.core.bbox.builder import BBOX_ASSIGNERS
-from mmdet.core.bbox.match_costs import build_match_cost
+from mmdet.models.task_modules.assigners.base_assigner import BaseAssigner
+from mmdet.registry import TASK_UTILS
 
 
-@BBOX_ASSIGNERS.register_module()
+@TASK_UTILS.register_module()
 class DynamicTopkAssigner(BaseAssigner):
     """Computes dynamick-to-one lane matching between predictions and ground truth (GT).
     The dynamic k for each GT is computed using Lane(Line)IoU matrix.
@@ -41,10 +40,10 @@ class DynamicTopkAssigner(BaseAssigner):
         max_topk=4,
         min_topk=1,
     ):
-        self.cls_cost = build_match_cost(cls_cost)
-        self.reg_cost = build_match_cost(reg_cost)
-        self.iou_dynamick = build_match_cost(iou_dynamick)
-        self.iou_cost = build_match_cost(iou_cost)
+        self.cls_cost = TASK_UTILS.build(cls_cost)
+        self.reg_cost = TASK_UTILS.build(reg_cost)
+        self.iou_dynamick = TASK_UTILS.build(iou_dynamick)
+        self.iou_cost = TASK_UTILS.build(iou_cost)
         self.use_pred_length_for_iou = use_pred_length_for_iou
         self.max_topk = max_topk
         self.min_topk = min_topk
@@ -201,7 +200,7 @@ class DynamicTopkAssigner(BaseAssigner):
             matched_col_inds (Tensor): matched targets, shape: (num_targets).
         Np: number of priors (anchors), Ng: number of GT lanes, Nr: number of rows.
         """
-        img_h, img_w, _ = img_meta["img_shape"]
+        img_h, img_w, _ = img_meta.img_shape
 
         pred_xs = predictions["xs"].detach().clone()  # relative
         target_xs = targets[:, 6:] / (img_w - 1)  # abs -> relative

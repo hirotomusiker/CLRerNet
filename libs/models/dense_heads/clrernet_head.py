@@ -2,22 +2,26 @@
 Adapted from:
 https://github.com/Turoad/CLRNet/blob/main/clrnet/models/heads/clr_head.py
 """
+from typing import Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcv.cnn.bricks.transformer import build_attention
-from mmdet.core import build_assigner, build_prior_generator
-from mmdet.models.builder import HEADS, build_loss
+from mmdet.models.dense_heads.base_dense_head import BaseDenseHead
+from mmdet.registry import MODELS
+from mmdet.registry import TASK_UTILS
+from mmdet.structures import SampleList
 from nms import nms
+from torch import Tensor
 
 from libs.models.dense_heads.seg_decoder import SegDecoder
 from libs.utils.lane_utils import Lane
 
 
-@HEADS.register_module
-class CLRerHead(nn.Module):
+@MODELS.register_module()
+class CLRerHead(BaseDenseHead):
     def __init__(
         self,
         anchor_generator,
@@ -37,7 +41,7 @@ class CLRerHead(nn.Module):
         test_cfg=None,
     ):
         super(CLRerHead, self).__init__()
-        self.anchor_generator = build_prior_generator(anchor_generator)
+        self.anchor_generator = TASK_UTILS.build(anchor_generator)
         self.img_w = img_w
         self.img_h = img_h
         self.n_offsets = self.anchor_generator.num_offsets
@@ -48,15 +52,15 @@ class CLRerHead(nn.Module):
         self.refine_layers = attention.refine_layers = refine_layers
         self.fc_hidden_dim = attention.fc_hidden_dim = fc_hidden_dim
         self.prior_feat_channels = attention.in_channels = prior_feat_channels
-        self.attention = build_attention(attention)
-        self.loss_cls = build_loss(loss_cls)
-        self.loss_bbox = build_loss(loss_bbox)
-        self.loss_seg = build_loss(loss_seg) if loss_seg["loss_weight"] > 0 else None
-        self.loss_iou = build_loss(loss_iou)
+        self.attention = MODELS.build(attention)
+        self.loss_cls = MODELS.build(loss_cls)
+        self.loss_bbox = MODELS.build(loss_bbox)
+        self.loss_seg = MODELS.build(loss_seg) if loss_seg["loss_weight"] > 0 else None
+        self.loss_iou = MODELS.build(loss_iou)
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
         if self.train_cfg:
-            self.assigner = build_assigner(train_cfg["assigner"])
+            self.assigner = TASK_UTILS.build(train_cfg['assigner'])
 
         # Non-learnable parameters
         self.register_buffer(
@@ -99,9 +103,9 @@ class CLRerHead(nn.Module):
             self.seg_decoder = SegDecoder(
                 self.img_h,
                 self.img_w,
-                loss_seg.num_classes,
-                self.prior_feat_channels,
-                self.refine_layers,
+                num_classes=5,
+                prior_feat_channels=self.prior_feat_channels,
+                refine_layers=self.refine_layers,
             )
 
         self.init_weights()
@@ -246,7 +250,7 @@ class CLRerHead(nn.Module):
 
         return predictions_list
 
-    def loss(self, out_dict, img_metas):
+    def loss_by_feat(self, out_dict, batch_data_samples):
         """Loss calculation from the network output.
 
         Args:
@@ -258,22 +262,22 @@ class CLRerHead(nn.Module):
                 where
                 B: batch size, Np: number of priors (anchors), Nr: number of rows,
                 C: segmentation channels, H and W: the largest feature's spatial shape.
-            img_metas (list[dict]): Meta information of each image, e.g.,
-                image size, scaling factor, etc.
+            batch_data_samples: (List[:obj:`DetDataSample`]): The data samples
+                that include meta information.
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
-        batch_size = len(img_metas)
+        batch_size = len(batch_data_samples)
         device = out_dict["predictions"][0]["cls_logits"].device
         cls_loss = torch.tensor(0.0).to(device)
         reg_xytl_loss = torch.tensor(0.0).to(device)
         iou_loss = torch.tensor(0.0).to(device)
 
         for stage in range(self.refine_layers):
-            for b, img_meta in enumerate(img_metas):
+            for b, img_meta in enumerate(batch_data_samples):
                 pred_dict = {k: v[b] for k, v in out_dict["predictions"][stage].items()}
                 cls_pred = pred_dict["cls_logits"]
-                target = img_meta["lanes"].clone().to(device)  # [n_lanes, 78]
+                target = img_meta.lanes.clone().to(device)  # [n_lanes, 78]
                 target = target[target[:, 1] == 1]
                 cls_target = cls_pred.new_zeros(cls_pred.shape[0]).long()
 
@@ -346,18 +350,18 @@ class CLRerHead(nn.Module):
 
         # extra segmentation loss
         if self.loss_seg:
-            tgt_masks = np.array([t["gt_masks"].data[0] for t in img_metas])
+            tgt_masks = np.array([t.gt_masks[0] for t in batch_data_samples])
             tgt_masks = torch.tensor(tgt_masks).long().to(device)  # (B, H, W)
             loss_dict["loss_seg"] = self.loss_seg(out_dict["seg"], tgt_masks)
 
         return loss_dict
 
-    def forward_train(self, x, img_metas, **kwargs):
+    def loss(self, x: Tuple[Tensor], batch_data_samples: SampleList) -> dict:
         """Forward function for training mode.
         Args:
             x (list[Tensor]): Features from backbone.
-            img_metas (list[dict]): Meta information of each image, e.g.,
-                image size, scaling factor, etc.
+            batch_data_samples (List[:obj:`DetDataSample`]): The data samples
+                that include meta information.
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
@@ -366,7 +370,7 @@ class CLRerHead(nn.Module):
         if self.loss_seg:
             out_dict["seg"] = self.forward_seg(x)
 
-        losses = self.loss(out_dict, img_metas)
+        losses = self.loss_by_feat(out_dict, batch_data_samples)
         return losses
 
     def forward_seg(self, x):
@@ -394,7 +398,7 @@ class CLRerHead(nn.Module):
         seg = self.seg_decoder(seg_features)
         return seg
 
-    def get_lanes(self, pred_dict, as_lanes=True):
+    def get_lanes(self, pred_dict, as_lanes=True, extend_bottom=True):
         """
         Convert model output to lane instances.
         Args:
@@ -411,49 +415,54 @@ class CLRerHead(nn.Module):
 
         B: batch size, Np: num_priors, Nr: num_points (rows).
         """
-        softmax = nn.Softmax(dim=1)
-        assert (
-            len(pred_dict["cls_logits"]) == 1
-        ), "Only single-image prediction is available!"
-        # filter out the conf lower than conf threshold
+        softmax = nn.Softmax(dim=2)
         threshold = self.test_cfg.conf_threshold
-        scores = softmax(pred_dict["cls_logits"][0])[:, 1]
-        keep_inds = scores >= threshold
-        scores = scores[keep_inds]
-        xs = pred_dict["xs"][0, keep_inds]
-        lengths = pred_dict["lengths"][0, keep_inds]
-        anchor_params = pred_dict["anchor_params"][0, keep_inds]
-        if xs.shape[0] == 0:
-            return [], []
+        all_scores = softmax(pred_dict["cls_logits"])[:, :, 1]
+        all_keep_inds = all_scores >= threshold  # [64, 192]
+        out_preds = []
+        out_scores = []
+        for scores, xs, lengths, anchor_params, keep_inds in zip(
+            all_scores, pred_dict["xs"], pred_dict["lengths"],
+            pred_dict["anchor_params"], all_keep_inds):
+            scores = scores[keep_inds]
+            xs = xs[keep_inds]
+            lengths = lengths[keep_inds]
+            anchor_params = anchor_params[keep_inds]
+            if xs.shape[0] == 0:
+                out_preds.append([])
+                out_scores.append([])
+                continue
 
-        if self.test_cfg.use_nms:
-            nms_anchor_params = anchor_params[..., :2].detach().clone()
-            nms_anchor_params[..., 0] = 1 - nms_anchor_params[..., 0]
-            nms_predictions = torch.cat(
-                [
-                    pred_dict["cls_logits"][0, keep_inds].detach().clone(),
-                    nms_anchor_params[..., :2],
-                    lengths.detach().clone() * self.n_strips,
-                    xs.detach().clone() * (self.img_w - 1),
-                ],
-                dim=-1,
-            )  # [N, 77]
-            keep, num_to_keep, _ = nms(
-                nms_predictions,
-                scores,
-                overlap=self.test_cfg.nms_thres,
-                top_k=self.test_cfg.nms_topk,
-            )
-            keep = keep[:num_to_keep]
-            xs = xs[keep]
-            scores = scores[keep]
-            lengths = lengths[keep]
-            anchor_params = anchor_params[keep]
+            if self.test_cfg.use_nms:
+                nms_anchor_params = anchor_params[..., :2].detach().clone()
+                nms_anchor_params[..., 0] = 1 - nms_anchor_params[..., 0]
+                nms_predictions = torch.cat(
+                    [
+                        pred_dict["cls_logits"][0, keep_inds].detach().clone(),
+                        nms_anchor_params[..., :2],
+                        lengths.detach().clone() * self.n_strips,
+                        xs.detach().clone() * (self.img_w - 1),
+                    ],
+                    dim=-1,
+                )  # [N, 77]
+                keep, num_to_keep, _ = nms(
+                    nms_predictions,
+                    scores,
+                    overlap=self.test_cfg.nms_thres,
+                    top_k=self.test_cfg.nms_topk,
+                )
+                keep = keep[:num_to_keep]
+                xs = xs[keep]
+                scores = scores[keep]
+                lengths = lengths[keep]
+                anchor_params = anchor_params[keep]
 
-        lengths = torch.round(lengths * self.n_strips)
-        pred = self.predictions_to_lanes(xs, anchor_params, lengths, scores, as_lanes)
+            lengths = torch.round(lengths * self.n_strips)
+            pred = self.predictions_to_lanes(xs, anchor_params, lengths, scores, as_lanes, extend_bottom)
+            out_preds.append(pred)
+            out_scores.append(scores)
 
-        return pred, scores
+        return out_preds, out_scores
 
     def predictions_to_lanes(
         self, pred_xs, anchor_params, lengths, scores, as_lanes=True, extend_bottom=True
@@ -474,7 +483,7 @@ class CLRerHead(nn.Module):
 
         B: batch size, Nl: number of lanes after NMS, Nr: num_points (rows).
         """
-        prior_ys = self.prior_ys.to(pred_xs.device).double()
+        prior_ys = self.prior_ys.double()
         lanes = []
         for lane_xs, lane_param, length, score in zip(
             pred_xs, anchor_params, lengths, scores
@@ -517,10 +526,13 @@ class CLRerHead(nn.Module):
             lanes.append(lane)
         return lanes
 
-    def simple_test(self, feats):
+    def predict(self, feats, data_samples, rescale=False):
         """Test function without test-time augmentation.
         Args:
             feats (tuple[torch.Tensor]): Multi-level features from the FPN.
+            data_samples (List[:obj:`DetDataSample`]): The data samples
+                that include meta information.
+            rescale (bool, optional): Whether to rescale the results.
         Returns:
             result_dict (dict): Inference result containing
                 lanes (List[torch.Tensor]): List of lane tensors (shape: (N, 2))
@@ -528,9 +540,15 @@ class CLRerHead(nn.Module):
                 scores (torch.Tensor): Confidence scores of the lanes.
         """
         pred_dict = self(feats)[-1]
-        lanes, scores = self.get_lanes(pred_dict, as_lanes=self.test_cfg.as_lanes)
-        result_dict = {
+        all_lanes, all_scores = self.get_lanes(
+            pred_dict,
+            as_lanes=self.test_cfg.as_lanes,
+            extend_bottom=self.test_cfg.extend_bottom
+            )
+        result_dict = [{
             "lanes": lanes,
             "scores": scores,
+            "metainfo": ds.metainfo,
         }
+        for lanes, scores, ds in zip(all_lanes, all_scores, data_samples)]
         return result_dict

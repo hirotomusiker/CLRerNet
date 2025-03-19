@@ -66,17 +66,15 @@ val_al_pipeline = [
 
 train_pipeline = [
     dict(type="albumentation", pipelines=train_al_pipeline),
-    dict(type="Normalize", **img_norm_cfg),
-    dict(type="DefaultFormatBundle"),
+    #dict(type="Normalize", **img_norm_cfg),
     dict(
-        type="CollectCLRNet",
-        keys=["img"],
+        type="PackCLRNetInputs",
+        #keys=["img"],
         meta_keys=[
             "filename",
             "sub_img_name",
             "ori_shape",
             "img_shape",
-            "img_norm_cfg",
             "ori_shape",
             "img_shape",
             "gt_points",
@@ -88,26 +86,25 @@ train_pipeline = [
 
 val_pipeline = [
     dict(type="albumentation", pipelines=val_al_pipeline),
-    dict(type="Normalize", **img_norm_cfg),
-    dict(type="DefaultFormatBundle"),
+    #dict(type="Normalize", **img_norm_cfg),
     dict(
-        type="CollectCLRNet",
-        keys=["img"],
+        type="PackCLRNetInputs",
+        #keys=["img"],
         meta_keys=[
             "filename",
             "sub_img_name",
             "ori_shape",
             "img_shape",
-            "img_norm_cfg",
         ],
     ),
 ]
 
 
-data = dict(
-    samples_per_gpu=32,  # medium
-    workers_per_gpu=8,
-    train=dict(
+train_dataloader=dict(
+    batch_size=32,
+    num_workers=4,
+    sampler=dict(type='DefaultSampler', shuffle=True),
+    dataset=dict(
         type=dataset_type,
         data_root=data_root,
         data_list=data_root + "/list/train_gt.txt",
@@ -115,15 +112,27 @@ data = dict(
         diff_thr=15,
         pipeline=train_pipeline,
         test_mode=False,
-    ),
-    val=dict(
+    )
+)
+val_dataloader=dict(
+    batch_size=64,
+    num_workers=4,
+    drop_last=False,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        data_list=data_root + "/list/test.txt",
+        data_list=data_root + "/list/val.txt",
         pipeline=val_pipeline,
         test_mode=True,
     ),
-    test=dict(
+)
+test_dataloader=dict(
+    batch_size=64,
+    num_workers=4,
+    drop_last=False,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(
         type=dataset_type,
         data_root=data_root,
         data_list=data_root + "/list/test.txt",
@@ -131,3 +140,15 @@ data = dict(
         test_mode=True,
     ),
 )
+
+val_evaluator = dict(
+    type='CULaneMetric',
+    data_root=data_root,
+    data_list=data_root + "/list/val.txt",
+    )
+
+test_evaluator = dict(
+    type='CULaneMetric',
+    data_root=data_root,
+    data_list=data_root + "/list/test.txt",
+    )

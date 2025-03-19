@@ -4,10 +4,9 @@
 
 import cv2
 import torch
-from mmcv.parallel import collate, scatter
 
-from libs.datasets.pipelines import Compose
 from libs.datasets.metrics.culane_metric import interp
+from libs.datasets.pipelines import Compose
 
 
 def inference_one_image(model, img_path):
@@ -34,25 +33,20 @@ def inference_one_image(model, img_path):
 
     cfg = model.cfg
     model.bbox_head.test_cfg.as_lanes = False
-    device = next(model.parameters()).device  # model device
 
-    test_pipeline = Compose(cfg.data.test.pipeline)
+    test_pipeline = Compose(cfg.test_dataloader.dataset.pipeline)
 
     data = test_pipeline(data)
-    data = collate([data], samples_per_gpu=1)
-
-    data['img_metas'] = data['img_metas'].data[0]
-    data['img'] = data['img'].data[0]
-
-    if next(model.parameters()).is_cuda:
-        # scatter to specified GPU
-        data = scatter(data, [device])[0]
+    data_ = dict(
+        inputs=[data["inputs"]],
+        data_samples=[data["data_samples"]],
+    )
 
     # forward the model
     with torch.no_grad():
-        results = model(return_loss=False, rescale=True, **data)
+        results = model.test_step(data_)
 
-    lanes = results[0]['result']['lanes']
+    lanes = results[0]['lanes']
     preds = get_prediction(lanes, ori_shape[0], ori_shape[1])
 
     return img, preds

@@ -5,13 +5,11 @@ https://github.com/aliyun/conditional-lane-detection/blob/master/tools/condlanen
 import argparse
 
 import cv2
-import mmcv
-import numpy as np
+import mmengine
 import torch
-from mmcv import Config
-from mmcv import DictAction
-from mmcv.runner import load_checkpoint
-from mmdet.models import build_detector
+from mmdet.apis import init_detector
+from mmengine.config import DictAction
+from libs.datasets.pipelines import Compose
 
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
@@ -41,47 +39,48 @@ def parse_args():
 
 def main():
     args = parse_args()
-
-    cfg = Config.fromfile(args.config)
-    if args.cfg_options is not None:
-        cfg.merge_from_dict(args.cfg_options)
-    # import modules from string list.
-    if cfg.get("custom_imports", None):
-        from mmcv.utils import import_modules_from_strings
-
-        import_modules_from_strings(**cfg["custom_imports"])
-    # set cudnn_benchmark
-    if cfg.get("cudnn_benchmark", False):
-        torch.backends.cudnn.benchmark = True
-
-    cfg.model.pretrained = None
-    # build the model and load checkpoint
-    model = build_detector(cfg.model, test_cfg=cfg.get("test_cfg"))
-    load_checkpoint(model, args.checkpoint, map_location="cpu")
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    # build the model from a config file and a checkpoint file
+    model = init_detector(args.config, args.checkpoint, device=device)
 
     print("Preparing image", args.filename)
     img = cv2.imread(args.filename)
-    cuty = cfg.crop_bbox[1] if "crop_bbox" in cfg else 0
-    img = img[cuty:, ...]
-    img = cv2.resize(img, cfg.img_scale)
-    mean = np.array(cfg.img_norm_cfg.mean)
-    std = np.array(cfg.img_norm_cfg.std)
-    img = mmcv.imnormalize(img, mean, std, False)
-    img = torch.unsqueeze(torch.tensor(img).permute(2, 0, 1), 0).cuda()
-    model = model.cuda().eval()
-    img_metas = [dict()]
+    ori_shape = img.shape
 
+    cfg = model.cfg
+    model.bbox_head.test_cfg.as_lanes = False
+    model.bbox_head.test_cfg.extend_bottom = False
+
+    test_pipeline = Compose(cfg.test_dataloader.dataset.pipeline)
+    data = dict(
+        filename=args.filename,
+        sub_img_name=None,
+        img=img,
+        gt_points=[],
+        id_classes=[],
+        id_instances=[],
+        img_shape=ori_shape,
+        ori_shape=ori_shape,
+    )
+    data = test_pipeline(data)
+    data = dict(
+        inputs=[data["inputs"]],
+        data_samples=[data["data_samples"]],
+    )
+    data_preprocessed = model.data_preprocessor(data, False)
+
+    # forward the model
     with torch.no_grad():
         # warm up
         print(f"Warming up for {args.n_iter_warmup} iterations.")
         for i in range(args.n_iter_warmup):
-            _ = model(img, img_metas, return_loss=False, rescale=True)
+            _ = model.predict(data_preprocessed["inputs"], data_preprocessed["data_samples"])
 
         # test
         print(f"Speed test for {args.n_iter_test} iterations.")
-        timer = mmcv.Timer()
+        timer = mmengine.Timer()
         for i in range(args.n_iter_test):
-            _ = model(img, img_metas, return_loss=False, rescale=True)
+            _ = model.predict(data_preprocessed["inputs"], data_preprocessed["data_samples"])
         t = timer.since_last_check()
         fps = args.n_iter_test / t
         print("##########################")

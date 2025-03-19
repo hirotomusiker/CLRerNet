@@ -52,7 +52,7 @@ def visualize_lanes(
     dst = copy.deepcopy(src)
     for anno in annos:
         dst = draw_lane(anno, dst, dst.shape, width=4, color=GT_COLOR)
-    if pred_ious == None:
+    if pred_ious is None:
         hits = [True for i in range(len(preds))]
     else:
         hits = [iou > iou_thr for iou in pred_ious]

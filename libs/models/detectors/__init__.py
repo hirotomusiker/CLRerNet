@@ -1,1 +1,1 @@
-from .clrernet import CLRerNet
+from .clrernet import CLRerNet # noqa: F401

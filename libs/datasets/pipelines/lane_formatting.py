@@ -1,25 +1,27 @@
 import math
 
 import numpy as np
-from mmcv.parallel import DataContainer as DC
-from mmdet.datasets.builder import PIPELINES
-from mmdet.datasets.pipelines.formatting import Collect, to_tensor
+from mmcv.transforms import to_tensor
+from mmcv.transforms.base import BaseTransform
+from mmdet.registry import TRANSFORMS
+from mmdet.structures import DetDataSample
+from mmengine.structures import InstanceData
 
 from libs.utils.lane_utils import sample_lane
 
 
-@PIPELINES.register_module
-class CollectCLRNet(Collect):
+@TRANSFORMS.register_module()
+class PackCLRNetInputs(BaseTransform):
     def __init__(
         self,
-        keys=None,
+        #keys=None,
         meta_keys=None,
         max_lanes=4,
         num_points=72,
         img_w=800,
         img_h=320,
     ):
-        self.keys = keys
+        #self.keys = keys
         self.meta_keys = meta_keys
         self.max_lanes = max_lanes
         self.n_offsets = num_points
@@ -76,14 +78,20 @@ class CollectCLRNet(Collect):
         results["lanes"] = to_tensor(lanes)
         return results
 
-    def __call__(self, results):
+    def transform(self, results):
         data = {}
         img_meta = {}
+        data_sample = DetDataSample()
+        instance_data = InstanceData()
+        if "img" in results:
+            img = results["img"]
+            img = to_tensor(img).permute(2, 0, 1).contiguous()
         if "lanes" in self.meta_keys:  # training
             results = self.convert_targets(results)
         for key in self.meta_keys:
             img_meta[key] = results[key]
-        data["img_metas"] = DC(img_meta, cpu_only=True)
-        for key in self.keys:
-            data[key] = results[key]
+        data_sample.gt_instances = instance_data
+        data_sample.set_metainfo(img_meta)
+        data["data_samples"] = data_sample
+        data["inputs"] = img
         return data

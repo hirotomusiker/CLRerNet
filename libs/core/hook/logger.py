@@ -1,11 +1,9 @@
-from mmcv.runner.dist_utils import master_only
-from mmcv.runner.hooks import HOOKS
-from mmcv.runner.hooks.logger.tensorboard import TensorboardLoggerHook
+from mmengine.registry import VISBACKENDS
+from mmengine.visualization.vis_backend import TensorboardVisBackend
 
 
-@HOOKS.register_module()
-class TensorboardLoggerHookEpoch(TensorboardLoggerHook):
-    @master_only
+@VISBACKENDS.register_module()
+class TensorboardLoggerHookEpoch(TensorboardVisBackend):
     def log(self, runner):
         tags = self.get_loggable_tags(runner, allow_text=True)
         for tag, val in tags.items():

@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
 
 # packages
 RUN apt-get update && \
@@ -27,23 +27,19 @@ RUN pyenv install ${PYTHON_VERSION} && pyenv global ${PYTHON_VERSION}
 ARG TORCH_VERSION
 ARG TORCH_CUDA_ARCH_LIST
 ARG TORCHVISION_VERSION
-RUN pip install torch==${TORCH_VERSION} -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install "numpy<2.0"
+RUN pip install torch==${TORCH_VERSION} --index-url https://download.pytorch.org/whl/cu121
 RUN pip install torchvision==${TORCHVISION_VERSION}
 
 # mmcv
 ARG MIM_VERSION
 ARG MMCV_VERSION
-RUN pip install -U openmim==${MIM_VERSION}
-RUN mim install mmcv-full==${MMCV_VERSION}
-
-# mmdet
+ARG MMENGINE_VERSION
 ARG MMDET_VERSION
-WORKDIR /home/docker/
-RUN pip install Cython
-RUN git clone https://github.com/open-mmlab/mmdetection.git mmdetection -b v${MMDET_VERSION} --depth 1
-WORKDIR /home/docker/mmdetection
-ENV FORCE_CUDA="1"
-RUN pip install --no-cache-dir -e .
+RUN pip install -U openmim==${MIM_VERSION}
+RUN mim install mmcv==${MMCV_VERSION}
+RUN mim install mmengine==${MMENGINE_VERSION}
+RUN mim install mmdet==${MMDET_VERSION}
 
 # requirements
 RUN pip install -U pip setuptools
@@ -54,6 +50,9 @@ RUN pip install -r /tmp/requirements.txt
 COPY --chown=docker libs/models/layers/nms /tmp/nms
 WORKDIR /tmp/nms
 RUN python /tmp/nms/setup.py install
+
+# enable deterministic training
+ENV CUBLAS_WORKSPACE_CONFIG=:4096:8
 
 # path
 ENV PYTHONPATH $PYTHONPATH:/work

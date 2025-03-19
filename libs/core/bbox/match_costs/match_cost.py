@@ -1,10 +1,10 @@
 import torch
-from mmdet.core.bbox.match_costs.builder import MATCH_COST
+from mmdet.registry import TASK_UTILS
 
 from libs.models.losses import LaneIoULoss
 
 
-@MATCH_COST.register_module()
+@TASK_UTILS.register_module()
 class FocalCost:
     def __init__(self, weight=1.0, alpha=0.25, gamma=2, eps=1e-12):
         self.alpha = alpha
@@ -34,7 +34,7 @@ class FocalCost:
         return cls_cost * self.weight
 
 
-@MATCH_COST.register_module()
+@TASK_UTILS.register_module()
 class DistanceCost:
     def __init__(self, weight=1.0):
         self.weight = weight
@@ -67,7 +67,7 @@ class DistanceCost:
         return distances
 
 
-@MATCH_COST.register_module()
+@TASK_UTILS.register_module()
 class CLRNetIoUCost:
     def __init__(self, weight=1.0, lane_width=15 / 800):
         """
@@ -129,7 +129,7 @@ class CLRNetIoUCost:
         return iou * self.weight
 
 
-@MATCH_COST.register_module()
+@TASK_UTILS.register_module()
 class LaneIoUCost(CLRNetIoUCost, LaneIoULoss):
     def __init__(
         self,

@@ -1,1 +1,1 @@
-from .attentions import ROIGather
+from .attentions import ROIGather  # noqa: F401

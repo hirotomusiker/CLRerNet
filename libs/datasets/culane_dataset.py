@@ -1,24 +1,20 @@
 """
 Adapted from:
 https://github.com/aliyun/conditional-lane-detection/blob/master/mmdet/datasets/culane_dataset.py
+https://github.com/open-mmlab/mmengine/blob/v0.10.4/mmengine/dataset/base_dataset.py
 """
-
-
 from pathlib import Path
 
 import cv2
 import numpy as np
-from mmdet.datasets.builder import DATASETS
-from mmdet.datasets.custom import CustomDataset
-from mmdet.utils import get_root_logger
-from tqdm import tqdm
+from mmdet.registry import DATASETS
+from torch.utils.data import Dataset
 
-from libs.datasets.metrics.culane_metric import eval_predictions
 from libs.datasets.pipelines import Compose
 
 
-@DATASETS.register_module
-class CulaneDataset(CustomDataset):
+@DATASETS.register_module()
+class CulaneDataset(Dataset):
     """Culane Dataset class."""
 
     def __init__(
@@ -30,6 +26,7 @@ class CulaneDataset(CustomDataset):
         diff_thr=15,
         test_mode=True,
         y_step=2,
+        **kwargs
     ):
         """
         Args:
@@ -45,13 +42,14 @@ class CulaneDataset(CustomDataset):
 
         self.img_prefix = data_root
         self.test_mode = test_mode
-        self.ori_w, self.ori_h = 1640, 590
         # read image list
         self.diffs = np.load(diff_file)["data"] if diff_file is not None else []
         self.diff_thr = diff_thr
         self.img_infos, self.annotations, self.mask_paths = self.parse_datalist(
             data_list
         )
+        self.img_infos = self.img_infos
+        self.metainfo = {}
         print(len(self.img_infos), "data are loaded")
         # set group flag for the sampler
         if not self.test_mode:
@@ -59,10 +57,7 @@ class CulaneDataset(CustomDataset):
 
         # build data pipeline
         self.pipeline = Compose(pipeline)
-        self.result_dir = "tmp"
         self.list_path = data_list
-        self.test_categories_dir = str(Path(data_root).joinpath("list/test_split/"))
-        self.y_step = y_step
 
     def parse_datalist(self, data_list):
         """
@@ -191,64 +186,27 @@ class CulaneDataset(CustomDataset):
         id_instances = [i + 1 for i in range(len(shapes))]
         return shapes, id_classes, id_instances
 
-    def evaluate(self, results, metric="F1", logger=None):
-        """
-        Write prediction to txt files for evaluation and
-        evaluate them with labels.
+    def _rand_another(self, idx):
+        """Get another random index from the same group as the given index."""
+        pool = np.where(self.flag == self.flag[idx])[0]
+        return np.random.choice(pool)
+
+    def __getitem__(self, idx):
+        """Get training/test data after pipeline.
+
         Args:
-            results (List[dict]): All inference results containing:
-                result (dict): contains 'lanes' and 'scores'.
-                meta (dict): contains meta information.
-            metric (str): Metric type to evaluate. (not used)
+            idx (int): Index of data.
+
         Returns:
-            dict: Evaluation result dict containing
-                F1, precision, recall, etc. on the specified IoU thresholds.
-
+            dict: Training/test data (with annotation if `test_mode` is set \
+                True).
         """
-        for result in tqdm(results):
-            lanes = result["result"]["lanes"]
-            dst_path = (
-                Path(self.result_dir)
-                .joinpath(result["meta"]["sub_img_name"])
-                .with_suffix(".lines.txt")
-            )
-            dst_path.parents[0].mkdir(parents=True, exist_ok=True)
-            with open(str(dst_path), "w") as f:
-                output = self.get_prediction_string(lanes)
-                if len(output) > 0:
-                    print(output, file=f)
 
-        results = eval_predictions(
-            self.result_dir,
-            self.img_prefix,
-            self.list_path,
-            self.test_categories_dir,
-            logger=get_root_logger(log_level="INFO"),
-        )
-        return results
-
-    def get_prediction_string(self, lanes):
-        """
-        Convert lane instance structure to prediction strings.
-        Args:
-            lanes (List[Lane]): List of lane instances in `Lane` structure.
-        Returns:
-            out_string (str): Output string.
-        """
-        ys = np.arange(0, self.ori_h, self.y_step) / self.ori_h
-        out = []
-        for lane in lanes:
-            xs = lane(ys)
-            valid_mask = (xs >= 0) & (xs < 1)
-            xs = xs * self.ori_w
-            lane_xs = xs[valid_mask]
-            lane_ys = ys[valid_mask] * self.ori_h
-            lane_xs, lane_ys = lane_xs[::-1], lane_ys[::-1]
-            if len(lane_xs) < 2:
+        if self.test_mode:
+            return self.prepare_test_img(idx)
+        while True:
+            data = self.prepare_train_img(idx)
+            if data is None:
+                idx = self._rand_another(idx)
                 continue
-            lane_str = " ".join(
-                ["{:.5f} {:.5f}".format(x, y) for x, y in zip(lane_xs, lane_ys)]
-            )
-            if lane_str != "":
-                out.append(lane_str)
-        return "\n".join(out) if len(out) > 0 else ""
+            return data

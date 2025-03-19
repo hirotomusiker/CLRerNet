@@ -3,6 +3,7 @@ _base_ = [
     "dataset_culane_clrernet.py",
     "../../_base_/default_runtime.py",
 ]
+default_scope = 'mmdet'
 
 # custom imports
 custom_imports = dict(
@@ -21,17 +22,38 @@ cfg_name = "clrernet_culane_dla34.py"
 model = dict(test_cfg=dict(conf_threshold=0.41))
 
 total_epochs = 15
-evaluation = dict(interval=3)
 checkpoint_config = dict(interval=total_epochs)
 
-data = dict(samples_per_gpu=24)  # single GPU setting
+train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=total_epochs, val_interval=3)
+val_cfg = dict(type='ValLoop')
+test_cfg = dict(type='TestLoop')
+
+train_dataloader=dict(
+    batch_size=24
+ ) # single GPU setting
+
+# seed
+randomness = dict(seed=0, deterministic=True)
 
 # optimizer
-optimizer = dict(type="AdamW", lr=6e-4)
-optimizer_config = dict(grad_clip=None)
+optim_wrapper = dict(
+    type='OptimWrapper',
+    optimizer=dict(type="AdamW", lr=6e-4),
+)
 
-# learning policy
-lr_config = dict(policy="CosineAnnealing", min_lr=0.0, by_epoch=False)
+# learning rate policy
+param_scheduler = [
+    dict(
+        type='CosineAnnealingLR',
+        eta_min=0,
+        begin=0,
+        T_max=total_epochs,
+        end=total_epochs,
+        by_epoch=True,
+        convert_to_iter_based=True
+        ),
+]
+
 
 log_config = dict(
     hooks=[

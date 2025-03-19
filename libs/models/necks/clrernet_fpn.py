@@ -8,10 +8,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from mmcv.cnn import ConvModule
-from mmdet.models.builder import NECKS
+from mmdet.registry import MODELS
 
 
-@NECKS.register_module
+@MODELS.register_module()
 class CLRerNetFPN(nn.Module):
     def __init__(self, in_channels, out_channels, num_outs):
         """
@@ -70,7 +70,7 @@ class CLRerNetFPN(nn.Module):
               Example of shapes:
                 ([1, 64, 40, 100], [1, 64, 20, 50], [1, 64, 10, 25]).
         """
-        if type(inputs) == tuple:
+        if isinstance(inputs, tuple):
             inputs = list(inputs)
 
         assert len(inputs) >= len(self.in_channels)  # 4 > 3

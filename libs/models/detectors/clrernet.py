@@ -1,8 +1,8 @@
-from mmdet.models.builder import DETECTORS
 from mmdet.models.detectors.single_stage import SingleStageDetector
+from mmdet.registry import MODELS
 
 
-@DETECTORS.register_module()
+@MODELS.register_module()
 class CLRerNet(SingleStageDetector):
     def __init__(
         self,
@@ -11,12 +11,12 @@ class CLRerNet(SingleStageDetector):
         bbox_head,
         train_cfg=None,
         test_cfg=None,
-        pretrained=None,
+        data_preprocessor=None,
         init_cfg=None,
     ):
         """CLRerNet detector."""
         super(CLRerNet, self).__init__(
-            backbone, neck, bbox_head, train_cfg, test_cfg, pretrained, init_cfg
+            backbone, neck, bbox_head, train_cfg, test_cfg, data_preprocessor, init_cfg
         )
 
     def forward_train(self, img, img_metas, **kwargs):
@@ -37,25 +37,20 @@ class CLRerNet(SingleStageDetector):
         losses = self.bbox_head.forward_train(x, img_metas)
         return losses
 
-    def forward_test(self, img, img_metas, **kwargs):
+    def predict(self, img, data_samples, **kwargs):
         """
         Single-image test without augmentation.
         Args:
             img (torch.Tensor): Input image tensor of shape (1, 3, height, width).
-            img_metas (List[dict]): Meta dict containing image information.
+            data_samples (List[:obj:`DetDataSample`]): The data samples
+                that include meta information.
         Returns:
             result_dict (List[dict]): Single-image result containing prediction outputs and
              img_metas as 'result' and 'metas' respectively.
         """
-        assert (
-            img.shape[0] == 1 and len(img_metas) == 1
-        ), "Only single-image test is supported."
-        img_metas[0]["batch_input_shape"] = tuple(img.size()[-2:])
+        for i in range(len(data_samples)):
+            data_samples[i].metainfo["batch_input_shape"] = tuple(img.size()[-2:])
 
         x = self.extract_feat(img)
-        output = self.bbox_head.simple_test(x)
-        result_dict = {
-            "result": output,
-            "meta": img_metas[0],
-        }
-        return [result_dict]  # assuming batch size is 1
+        outputs = self.bbox_head.predict(x, data_samples)
+        return outputs

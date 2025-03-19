@@ -1,8 +1,8 @@
 import torch
-from mmdet.models.builder import LOSSES
+from mmdet.registry import MODELS
 
 
-@LOSSES.register_module
+@MODELS.register_module()
 class CLRNetIoULoss(torch.nn.Module):
     def __init__(self, loss_weight=1.0, lane_width=15 / 800):
         """
@@ -53,7 +53,7 @@ class CLRNetIoULoss(torch.nn.Module):
         return (1 - iou).mean() * self.loss_weight
 
 
-@LOSSES.register_module
+@MODELS.register_module()
 class LaneIoULoss(CLRNetIoULoss):
     def __init__(self, loss_weight=1.0, lane_width=7.5 / 800, img_h=320, img_w=1640):
         """
