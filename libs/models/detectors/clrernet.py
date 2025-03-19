@@ -42,7 +42,8 @@ class CLRerNet(SingleStageDetector):
         Single-image test without augmentation.
         Args:
             img (torch.Tensor): Input image tensor of shape (1, 3, height, width).
-            img_metas (List[dict]): Meta dict containing image information.
+            data_samples (List[:obj:`DetDataSample`]): The data samples
+                that include meta information.
         Returns:
             result_dict (List[dict]): Single-image result containing prediction outputs and
              img_metas as 'result' and 'metas' respectively.

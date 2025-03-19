@@ -250,10 +250,7 @@ class CLRerHead(BaseDenseHead):
 
         return predictions_list
 
-    def loss_by_feat(self, **kwargs):
-        pass
-
-    def _loss(self, out_dict, batch_data_samples):
+    def loss_by_feat(self, out_dict, batch_data_samples):
         """Loss calculation from the network output.
 
         Args:
@@ -265,8 +262,8 @@ class CLRerHead(BaseDenseHead):
                 where
                 B: batch size, Np: number of priors (anchors), Nr: number of rows,
                 C: segmentation channels, H and W: the largest feature's spatial shape.
-            img_metas (list[dict]): Meta information of each image, e.g.,
-                image size, scaling factor, etc.
+            batch_data_samples: (List[:obj:`DetDataSample`]): The data samples
+                that include meta information.
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
@@ -363,8 +360,8 @@ class CLRerHead(BaseDenseHead):
         """Forward function for training mode.
         Args:
             x (list[Tensor]): Features from backbone.
-            img_metas (list[dict]): Meta information of each image, e.g.,
-                image size, scaling factor, etc.
+            batch_data_samples (List[:obj:`DetDataSample`]): The data samples
+                that include meta information.
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
@@ -373,7 +370,7 @@ class CLRerHead(BaseDenseHead):
         if self.loss_seg:
             out_dict["seg"] = self.forward_seg(x)
 
-        losses = self._loss(out_dict, batch_data_samples)
+        losses = self.loss_by_feat(out_dict, batch_data_samples)
         return losses
 
     def forward_seg(self, x):
@@ -533,6 +530,9 @@ class CLRerHead(BaseDenseHead):
         """Test function without test-time augmentation.
         Args:
             feats (tuple[torch.Tensor]): Multi-level features from the FPN.
+            data_samples (List[:obj:`DetDataSample`]): The data samples
+                that include meta information.
+            rescale (bool, optional): Whether to rescale the results.
         Returns:
             result_dict (dict): Inference result containing
                 lanes (List[torch.Tensor]): List of lane tensors (shape: (N, 2))

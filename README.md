@@ -6,7 +6,7 @@ The official implementation of [our paper](https://openaccess.thecvf.com/content
 
 ## What's New
 
-- **Draft branches under development: [[CurveLanes dataset](https://github.com/hirotomusiker/CLRerNet/tree/feature/curvelanes)] **
+- **Draft branches under development: [[CurveLanes dataset](https://github.com/hirotomusiker/CLRerNet/tree/feature/curvelanes)]**
 - **[v0.3.0 release](https://github.com/hirotomusiker/CLRerNet/tree/v0.3.0) supports mmdet3x environment!**
 - Code for training is available ! (Dec. 1, 2023)
 - Our CLRerNet paper has been accepted to WACV2024 ! (Oct. 25, 2023)
