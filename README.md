@@ -6,7 +6,8 @@ The official implementation of [our paper](https://openaccess.thecvf.com/content
 
 ## What's New
 
-- **Draft branches under development: [[mmdet3x env](https://github.com/hirotomusiker/CLRerNet/tree/feature/mmv3_env)] (only test and demo inference) [[CurveLanes dataset](https://github.com/hirotomusiker/CLRerNet/tree/feature/curvelanes)] (train, test)**
+- **Draft branches under development: [[CurveLanes dataset](https://github.com/hirotomusiker/CLRerNet/tree/feature/curvelanes)] **
+- **[v0.3.0 release](https://github.com/hirotomusiker/CLRerNet/tree/v0.3.0) supports mmdet3x environment!**
 - Code for training is available ! (Dec. 1, 2023)
 - Our CLRerNet paper has been accepted to WACV2024 ! (Oct. 25, 2023)
 - LaneIoU loss and cost are published. ([PR#17](https://github.com/hirotomusiker/CLRerNet/pull/17), Oct.22, 2023)
@@ -34,6 +35,9 @@ CLRNet        | DLA34    | 80.47  | 18.4
 \* F1 score stats of five models reported in our paper. The release models' scores are 81.11 (CLRerNet) and 81.55 (CLRerNet&#8902;, EMA model) respectively.
 
 ## Install
+
+This repo is now based on the [mmdetection 3.3](https://github.com/open-mmlab/mmdetection/tree/v3.3.0) environment.  
+If you prefer the previous mmdet2x-based CLRerNet, please checkout the [v0.2.1 branch](https://github.com/hirotomusiker/CLRerNet/tree/v0.2.1).  
 
 Docker environment is recommended for installation:
 ```bash
@@ -91,11 +95,12 @@ python tools/speed_test.py configs/clrernet/culane/clrernet_culane_dla34.py clre
 ## Citation
 
 ```BibTeX
-@article{honda2023clrernet,
-      title={CLRerNet: Improving Confidence of Lane Detection with LaneIoU},
-      author={Hiroto Honda and Yusuke Uchida},
-      journal={arXiv preprint arXiv:2305.08366},
-      year={2023},
+@inproceedings{honda2024clrernet,
+  title={Clrernet: improving confidence of lane detection with laneiou},
+  author={Honda, Hiroto and Uchida, Yusuke},
+  booktitle={Proceedings of the IEEE/CVF winter conference on applications of computer vision},
+  pages={1176--1185},
+  year={2024}
 }
 ```
 
