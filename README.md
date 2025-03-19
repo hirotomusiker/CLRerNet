@@ -41,8 +41,8 @@ If you prefer the previous mmdet2x-based CLRerNet, please checkout the [v0.2.1 b
 
 Docker environment is recommended for installation:
 ```bash
-docker-compose build --build-arg UID="`id -u`" dev
-docker-compose run --rm dev
+docker compose build --build-arg UID="`id -u`" dev
+docker compose run --rm dev
 ```
 
 See [Installation Tips](docs/INSTALL.md) for more details.

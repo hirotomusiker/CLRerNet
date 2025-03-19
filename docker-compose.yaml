@@ -1,6 +1,5 @@
-version: "2.3"
 services:
-  mmdet3x:
+  dev:
     runtime: nvidia
     build:
       context: .
