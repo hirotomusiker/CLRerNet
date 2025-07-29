@@ -1,1 +1,2 @@
-from .clrernet import CLRerNet # noqa: F401
+from .clrernet import CLRerNet  # noqa: F401
+from .laneatt import LaneATT  # noqa: F401
