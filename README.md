@@ -6,6 +6,7 @@ The official implementation of [our paper](https://openaccess.thecvf.com/content
 
 ## What's New
 
+- **(dev) LaneATT with LaneIoU-based matcher [configs](configs/laneatt/README.md)**
 - **Draft branches under development: [[CurveLanes dataset](https://github.com/hirotomusiker/CLRerNet/tree/feature/curvelanes)]**
 - **[v0.3.0 release](https://github.com/hirotomusiker/CLRerNet/tree/v0.3.0) supports mmdet3x environment!**
 - Code for training is available ! (Dec. 1, 2023)
@@ -36,8 +37,8 @@ CLRNet        | DLA34    | 80.47  | 18.4
 
 ## Install
 
-This repo is now based on the [mmdetection 3.3](https://github.com/open-mmlab/mmdetection/tree/v3.3.0) environment.  
-If you prefer the previous mmdet2x-based CLRerNet, please checkout the [v0.2.1 branch](https://github.com/hirotomusiker/CLRerNet/tree/v0.2.1).  
+This repo is now based on the [mmdetection 3.3](https://github.com/open-mmlab/mmdetection/tree/v3.3.0) environment.
+If you prefer the previous mmdet2x-based CLRerNet, please checkout the [v0.2.1 branch](https://github.com/hirotomusiker/CLRerNet/tree/v0.2.1).
 
 Docker environment is recommended for installation:
 ```bash
