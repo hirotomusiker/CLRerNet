@@ -76,7 +76,7 @@ class DynamicTopkAssigner(BaseAssigner):
         matched_gt = matching_matrix.sum(1)
         if (matched_gt > 1).sum() > 0:
             _, cost_argmin = torch.min(cost[matched_gt > 1, :], dim=1)
-            matching_matrix[matched_gt > 1, 0] *= 0.0
+            matching_matrix[matched_gt > 1, :] *= 0.0
             matching_matrix[matched_gt > 1, cost_argmin] = 1.0
 
         prior_idx = matching_matrix.sum(1).nonzero()
