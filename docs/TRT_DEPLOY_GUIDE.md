@@ -1,6 +1,6 @@
 # TensorRT Deployment Guide (Jetson AGX Orin)
 
-> Author: [@seyedehsan-taheri](https://github.com/seyedehsan-taheri)  
+> Author: [@Ehsan-Taheri](https://github.com/ehsan-taheri)  
 > Tested on Jetson AGX Orin (JetPack 6, TensorRT 10.3, CUDA 12.3)  
 > Branch: `feature/tensorrt-export-jetson`  
 
