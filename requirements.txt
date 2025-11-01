@@ -1,4 +1,4 @@
-albumentations==0.4.6
+albumentationsx==2.0.12
 p_tqdm==1.4.2
 pytest
 pytest-cov
