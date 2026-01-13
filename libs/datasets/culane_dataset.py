@@ -156,6 +156,7 @@ class CulaneDataset(Dataset):
         """
         maskname = str(Path(self.img_prefix).joinpath(self.mask_paths[idx]))
         mask = cv2.imread(maskname, cv2.IMREAD_UNCHANGED)
+        assert mask is not None, f"{maskname} does not exist!"
         return mask
 
     def load_labels(self, idx):
