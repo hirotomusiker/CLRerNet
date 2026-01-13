@@ -16,11 +16,19 @@ Download the tar.gz files from the [official gdrive](https://drive.google.com/op
 , or use gdown as follows (cited from [LaneATT's docs](https://github.com/lucastabelini/LaneATT/blob/main/DATASETS.md#culane)):
 
 ```
+# test
 gdown "https://drive.google.com/uc?id=1LTdUXzUWcnHuEEAiMoG42oAGuJggPQs8"
 gdown "https://drive.google.com/uc?id=1daWl7XVzH06GwcZtF4WD8Xpvci5SZiUV"
 gdown "https://drive.google.com/uc?id=1Z6a463FQ3pfP54HMwF3QS5h9p2Ch3An7"
+# annotations
 gdown "https://drive.google.com/uc?id=1QbB1TOk9Fy6Sk0CoOsR3V8R56_eG6Xnu"
 gdown "https://drive.google.com/uc?id=18alVEPAMBA9Hpr3RDAAchqSj5IxZNRKd"
+# train & val
+gdown "https://drive.google.com/uc?id=1AQjQZwOAkeBTSG_1I9fYn8KBcxBBbYyk"
+gdown "https://drive.google.com/uc?id=1PH7UdmtZOK3Qi3SBqtYOkWSH2dpbfmkL"
+gdown "https://drive.google.com/uc?id=14Gi1AXbgkqvSysuoLyq1CsjFSypvoLVL"
+# segmentation mask (for auxiliary loss)
+gdown "https://drive.google.com/uc?id=1MlL1oSiRu6ZRU-62E39OZ7izljagPycH"
 ```
 Then extract the downloaded files in the dataset directory:
 ```
@@ -29,14 +37,21 @@ tar xf driver_100_30frame.tar.gz
 tar xf driver_193_90frame.tar.gzt
 tar xf annotations_new.tar.gz
 tar xf list.tar.gz
+tar xf driver_23_30frame.tar.gz
+tar xf driver_161_90frame.tar.gz
+tar xf driver_182_30frame.tar.gz
+tar xf laneseg_label_w16.tar.gz
 ```
+
 Finally the dataset folder would look like:
 ```
 $HOME/dataset/culane/
-├── driver_100_30frame
-├── driver_193_90frame
-├── driver_37_30frame
-└── list
+├── driver_100_30frame  # test, labels
+├── driver_193_90frame  # test, labels
+├── driver_37_30frame  # test, labels
+├── driver_23_30frame  # train & val, labels
+├── driver_161_90frame  # train, labels
+├── driver_182_30frame  # train, labels
+├── laneseg_label_w16  # segmentation masks
+└── list  # image lists
 ```
-
-
